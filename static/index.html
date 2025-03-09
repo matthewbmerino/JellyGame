@@ -1,0 +1,1298 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fish vs Jellyfish - 3D</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        #error-container { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; background: rgba(255,0,0,0.8); color: white; z-index: 1000; text-align: center; }
+        #fallback-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #001428; z-index: 999; }
+        .fallback-button { margin-top: 20px; padding: 10px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #ui-container { position: fixed; top: 10px; left: 10px; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; }
+        #view-mode { position: fixed; top: 10px; right: 10px; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; }
+        #controls-info { position: fixed; bottom: 10px; left: 10px; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; }
+        #game-message { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; background: rgba(0,0,0,0.7); border-radius: 10px; text-align: center; display: none; }
+    </style>
+</head>
+<body>
+    <!-- Fallback container for non-WebGL browsers -->
+    <div id="fallback-container">
+        <h1>WebGL Not Available</h1>
+        <p>Your browser doesn't seem to support WebGL, which is required for this game.</p>
+        <p id="webgl-error-details">Checking WebGL status...</p>
+        <div id="troubleshooting-tips">
+            <h3>Troubleshooting Tips:</h3>
+            <ul>
+                <li>Make sure your graphics drivers are up to date</li>
+                <li>Check if hardware acceleration is enabled in your browser settings</li>
+                <li>Try disabling browser extensions that might interfere with WebGL</li>
+                <li>On some systems, you may need to enable WebGL in your browser settings</li>
+            </ul>
+        </div>
+        <button class="fallback-button" onclick="tryFallbackRenderer()">Play 2D Version Instead</button>
+    </div>
+
+    <!-- UI Elements -->
+    <div id="ui-container">Score: <span id="score">0</span> | Level: <span id="level">1</span></div>
+    <div id="view-mode">View: <span id="view-mode-text">THIRD PERSON</span></div>
+    <div id="controls-info">
+        ↑↓ to move up/down<br>
+        ←→ to turn<br>
+        F to move forward<br>
+        R to move backward<br>
+        Press V to toggle view
+    </div>
+    <div id="game-message">
+        <h2 id="message-title"></h2>
+        <p id="message-text">Press Space to continue</p>
+    </div>
+
+    <!-- Include Three.js and required libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://threejs.org/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://threejs.org/examples/js/objects/Water.js"></script>
+    <script src="https://threejs.org/examples/js/libs/stats.min.js"></script>
+    <script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
+    <script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
+    <script>
+        // WebGL detection
+        function checkWebGLSupport() {
+            const canvas = document.createElement('canvas');
+            let gl = null;
+            let errorDetails = "";
+            
+            try {
+                // Try WebGL2 first
+                gl = canvas.getContext('webgl2');
+                if (gl) return { supported: true, version: 2, context: gl, error: null };
+                
+                // Fall back to WebGL1
+                gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) return { supported: true, version: 1, context: gl, error: null };
+                
+                // No WebGL support
+                errorDetails = "WebGL not supported by your browser";
+            } catch (e) {
+                errorDetails = "Error creating WebGL context: " + e.message;
+            }
+            
+            // Check if WebGL is disabled
+            if (!gl) {
+                try {
+                    const testCanvas = document.createElement('canvas');
+                    const testContext = testCanvas.getContext('webgl', { failIfMajorPerformanceCaveat: true });
+                    
+                    if (!testContext) {
+                        errorDetails += " (WebGL might be disabled or hardware acceleration is turned off)";
+                    }
+                } catch (e) {
+                    // Ignore this test if it fails
+                }
+            }
+            
+            return { supported: false, version: 0, context: null, error: errorDetails };
+        }
+
+        // Display WebGL status
+        const webglStatus = checkWebGLSupport();
+        const errorDetailsElement = document.getElementById('webgl-error-details');
+        
+        if (webglStatus.supported) {
+            console.log("WebGL is supported, initializing 3D game");
+            // Hide fallback container if WebGL is supported
+            document.getElementById('fallback-container').style.display = 'none';
+            
+            // Check if THREE.Water is available, if not, try to load it
+            if (typeof THREE.Water !== 'function') {
+                console.log("THREE.Water not found, attempting to load it dynamically");
+                
+                // Create a script element to load Water.js
+                const waterScript = document.createElement('script');
+                waterScript.src = 'https://threejs.org/examples/js/objects/Water.js';
+                waterScript.onload = function() {
+                    console.log("Water.js loaded successfully");
+                    // If WebGL is supported, initialize the game after Water.js is loaded
+                    if (webglStatus.supported) {
+                        try {
+                            initGame();
+                        } catch (error) {
+                            console.error("Error initializing 3D game:", error);
+                            document.getElementById('fallback-container').style.display = 'flex';
+                            errorDetailsElement.innerHTML = "Error initializing 3D game: " + error.message;
+                        }
+                    }
+                };
+                waterScript.onerror = function() {
+                    console.error("Failed to load Water.js");
+                    // Initialize game anyway, it will use the fallback water
+                    if (webglStatus.supported) {
+                        try {
+                            initGame();
+                        } catch (error) {
+                            console.error("Error initializing 3D game:", error);
+                            document.getElementById('fallback-container').style.display = 'flex';
+                            errorDetailsElement.innerHTML = "Error initializing 3D game: " + error.message;
+                        }
+                    }
+                };
+                
+                document.head.appendChild(waterScript);
+            } else {
+                // If THREE.Water is already available and WebGL is supported, initialize the game
+                if (webglStatus.supported) {
+                    try {
+                        initGame();
+                    } catch (error) {
+                        console.error("Error initializing 3D game:", error);
+                        document.getElementById('fallback-container').style.display = 'flex';
+                        errorDetailsElement.innerHTML = "Error initializing 3D game: " + error.message;
+                    }
+                }
+            }
+        } else {
+            console.log("WebGL not supported, showing fallback");
+            errorDetailsElement.innerHTML = webglStatus.error;
+        }
+
+        // 3D Game Implementation
+        function initGame() {
+            // Game state
+            const gameState = {
+                score: 0,
+                level: 1,
+                gameOver: false,
+                gameWon: false,
+                viewMode: 'third', // 'first' or 'third'
+                jellyfishCount: 30, // Starting jellyfish count
+                boundarySize: 1000,
+                goalReached: false
+            };
+
+            // Setup scene
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x001428);
+            scene.fog = new THREE.FogExp2(0x001428, 0.0025);
+
+            // Setup camera
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 10, 30);
+            
+            // Setup renderer
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(100, 100, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.camera.near = 10;
+            directionalLight.shadow.camera.far = 500;
+            directionalLight.shadow.camera.left = -100;
+            directionalLight.shadow.camera.right = 100;
+            directionalLight.shadow.camera.top = 100;
+            directionalLight.shadow.camera.bottom = -100;
+            scene.add(directionalLight);
+
+            // Add underwater light rays
+            const lightRays = new THREE.Group();
+            for (let i = 0; i < 20; i++) {
+                const rayGeometry = new THREE.CylinderGeometry(0.5, 5, 100, 8);
+                const rayMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x5599ff,
+                    transparent: true,
+                    opacity: 0.2,
+                    side: THREE.DoubleSide
+                });
+                const ray = new THREE.Mesh(rayGeometry, rayMaterial);
+                ray.position.set(
+                    (Math.random() - 0.5) * 500,
+                    50,
+                    (Math.random() - 0.5) * 500
+                );
+                ray.rotation.x = Math.PI / 2;
+                ray.rotation.z = Math.random() * Math.PI;
+                lightRays.add(ray);
+            }
+            scene.add(lightRays);
+
+            // Create water surface
+            const waterGeometry = new THREE.PlaneGeometry(10000, 10000, 100, 100);
+            
+            // Check if THREE.Water exists
+            let water;
+            if (typeof THREE.Water === 'function') {
+                // Use THREE.Water if available
+                water = new THREE.Water(waterGeometry, {
+                    textureWidth: 512,
+                    textureHeight: 512,
+                    waterNormals: new THREE.TextureLoader().load('https://threejs.org/examples/textures/waternormals.jpg', function(texture) {
+                        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                    }),
+                    alpha: 0.8,
+                    sunDirection: directionalLight.position.clone().normalize(),
+                    sunColor: 0xffffff,
+                    waterColor: 0x001e0f,
+                    distortionScale: 3.7,
+                    fog: scene.fog !== undefined
+                });
+            } else {
+                // Fallback to a simple water surface if THREE.Water is not available
+                console.log("THREE.Water not available, using fallback water surface");
+                const waterMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x001e0f,
+                    metalness: 0.1,
+                    roughness: 0.2,
+                    transparent: true,
+                    opacity: 0.8,
+                    envMapIntensity: 1.0,
+                    clearcoat: 1.0,
+                    clearcoatRoughness: 0.2
+                });
+                water = new THREE.Mesh(waterGeometry, waterMaterial);
+            }
+            
+            water.rotation.x = -Math.PI / 2;
+            water.position.y = 50;
+            scene.add(water);
+
+            // Create ocean floor
+            const floorGeometry = new THREE.PlaneGeometry(2000, 2000, 100, 100);
+            floorGeometry.rotateX(-Math.PI / 2);
+            
+            // Modify vertices to create an uneven ocean floor
+            const vertices = floorGeometry.attributes.position;
+            for (let i = 0; i < vertices.count; i++) {
+                const x = vertices.getX(i);
+                const z = vertices.getZ(i);
+                const y = -5 + Math.sin(x/20) * Math.cos(z/20) * 5;
+                vertices.setY(i, y);
+            }
+            floorGeometry.computeVertexNormals();
+            
+            const floorTexture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/sand.jpg');
+            floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
+            floorTexture.repeat.set(10, 10);
+            
+            const floorMaterial = new THREE.MeshStandardMaterial({
+                map: floorTexture,
+                color: 0xccbb99,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.position.y = -50;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Add underwater particles (bubbles and floating debris)
+            const particlesGeometry = new THREE.BufferGeometry();
+            const particleCount = 1000;
+            const particlePositions = new Float32Array(particleCount * 3);
+            const particleSizes = new Float32Array(particleCount);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                particlePositions[i3] = (Math.random() - 0.5) * 1000;
+                particlePositions[i3 + 1] = Math.random() * 100 - 50;
+                particlePositions[i3 + 2] = (Math.random() - 0.5) * 1000;
+                particleSizes[i] = Math.random() * 2 + 0.5;
+            }
+            
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+            particlesGeometry.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
+            
+            const particleTexture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/circle.png');
+            const particlesMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 1,
+                transparent: true,
+                opacity: 0.6,
+                map: particleTexture,
+                sizeAttenuation: true,
+                depthWrite: false
+            });
+            
+            const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+            scene.add(particles);
+
+            // Create fish (player)
+            const fish = {
+                object: new THREE.Group(),
+                speed: 0.3,
+                turnSpeed: 0.02,
+                direction: new THREE.Vector3(0, 0, 1),
+                velocity: new THREE.Vector3(),
+                momentum: new THREE.Vector3(),
+                angularMomentum: 0,
+                verticalMomentum: 0,
+                naturalMovement: {
+                    amplitude: 0.05,
+                    frequency: 0.8,
+                    phase: 0
+                },
+                cameraDistance: 15,
+                cameraHeight: 5,
+                boundingRadius: 3
+            };
+
+            // Create fish body
+            const fishBodyGeometry = new THREE.ConeGeometry(2, 8, 16);
+            fishBodyGeometry.rotateX(Math.PI / 2);
+            const fishBodyMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff8800,
+                metalness: 0.3,
+                roughness: 0.7,
+                emissive: 0x331100,
+                emissiveIntensity: 0.2
+            });
+            const fishBody = new THREE.Mesh(fishBodyGeometry, fishBodyMaterial);
+            fishBody.castShadow = true;
+            fish.object.add(fishBody);
+
+            // Create fish tail
+            const tailGeometry = new THREE.ConeGeometry(2.5, 4, 4);
+            tailGeometry.rotateX(-Math.PI / 2);
+            const tailMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff9900,
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+            tail.position.z = -4;
+            tail.scale.y = 0.5;
+            fish.object.add(tail);
+
+            // Create fish fins
+            const finGeometry = new THREE.PlaneGeometry(3, 2);
+            const finMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff9900,
+                metalness: 0.3,
+                roughness: 0.7,
+                side: THREE.DoubleSide
+            });
+            
+            const leftFin = new THREE.Mesh(finGeometry, finMaterial);
+            leftFin.position.set(2, 0, 0);
+            leftFin.rotation.z = Math.PI / 4;
+            fish.object.add(leftFin);
+            
+            const rightFin = new THREE.Mesh(finGeometry, finMaterial);
+            rightFin.position.set(-2, 0, 0);
+            rightFin.rotation.z = -Math.PI / 4;
+            fish.object.add(rightFin);
+
+            // Create fish eyes
+            const eyeGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+            const eyeWhiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const eyePupilMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            
+            const leftEye = new THREE.Group();
+            const leftEyeWhite = new THREE.Mesh(eyeGeometry, eyeWhiteMaterial);
+            const leftEyePupil = new THREE.Mesh(
+                new THREE.SphereGeometry(0.25, 16, 16),
+                eyePupilMaterial
+            );
+            leftEyePupil.position.z = 0.25;
+            leftEye.add(leftEyeWhite);
+            leftEye.add(leftEyePupil);
+            leftEye.position.set(1, 1, 3);
+            fish.object.add(leftEye);
+            
+            const rightEye = leftEye.clone();
+            rightEye.position.set(-1, 1, 3);
+            fish.object.add(rightEye);
+
+            // Add fish to scene
+            scene.add(fish.object);
+
+            // Create jellyfishes
+            const jellyfishes = [];
+            
+            function createJellyfish() {
+                const jellyfish = {
+                    object: new THREE.Group(),
+                    radius: 3 + Math.random() * 2,
+                    tentacleLength: 10 + Math.random() * 5,
+                    speed: 0.05 + Math.random() * 0.1,
+                    direction: new THREE.Vector3(
+                        Math.random() - 0.5,
+                        Math.random() * 0.2 - 0.1,
+                        Math.random() - 0.5
+                    ).normalize(),
+                    pulsePhase: Math.random() * Math.PI * 2,
+                    pulseSpeed: 0.05 + Math.random() * 0.05
+                };
+                
+                // Normalize direction
+                jellyfish.direction.normalize();
+                
+                // Create jellyfish bell (body)
+                const bellGeometry = new THREE.SphereGeometry(jellyfish.radius, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+                const bellMaterial = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(
+                        0.9 + Math.random() * 0.1,
+                        0.4 + Math.random() * 0.3,
+                        0.7 + Math.random() * 0.3
+                    ),
+                    transparent: true,
+                    opacity: 0.7,
+                    emissive: new THREE.Color(
+                        0.5 + Math.random() * 0.5,
+                        0.2 + Math.random() * 0.3,
+                        0.5 + Math.random() * 0.5
+                    ),
+                    emissiveIntensity: 0.3,
+                    metalness: 0.2,
+                    roughness: 0.3
+                });
+                
+                const bell = new THREE.Mesh(bellGeometry, bellMaterial);
+                bell.castShadow = true;
+                jellyfish.object.add(bell);
+                
+                // Create tentacles
+                const tentacleCount = 8 + Math.floor(Math.random() * 8);
+                const tentacleGroup = new THREE.Group();
+                
+                for (let i = 0; i < tentacleCount; i++) {
+                    const angle = (i / tentacleCount) * Math.PI * 2;
+                    const radius = jellyfish.radius * 0.7;
+                    
+                    // Create more control points for smoother, more dynamic curves
+                    const tentacleCurve = new THREE.CubicBezierCurve3(
+                        new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius),
+                        new THREE.Vector3(Math.cos(angle) * radius, -jellyfish.tentacleLength * 0.3, Math.sin(angle) * radius),
+                        new THREE.Vector3(Math.cos(angle) * radius * 0.5, -jellyfish.tentacleLength * 0.6, Math.sin(angle) * radius * 0.5),
+                        new THREE.Vector3(Math.cos(angle) * radius * 0.2, -jellyfish.tentacleLength, Math.sin(angle) * radius * 0.2)
+                    );
+                    
+                    // Increase segments for smoother tentacles
+                    const tentacleGeometry = new THREE.TubeGeometry(tentacleCurve, 20, 0.2, 8, false);
+                    const tentacleMaterial = new THREE.MeshStandardMaterial({
+                        color: bellMaterial.color,
+                        transparent: true,
+                        opacity: 0.6,
+                        emissive: bellMaterial.emissive,
+                        emissiveIntensity: 0.2
+                    });
+                    
+                    const tentacle = new THREE.Mesh(tentacleGeometry, tentacleMaterial);
+                    // Store the original curve parameters for animation
+                    tentacle.userData = {
+                        angle: angle,
+                        radius: radius,
+                        length: jellyfish.tentacleLength,
+                        phase: Math.random() * Math.PI * 2 // Random phase for varied movement
+                    };
+                    tentacleGroup.add(tentacle);
+                }
+                
+                jellyfish.object.add(tentacleGroup);
+                jellyfish.tentacleGroup = tentacleGroup;
+                
+                // Position jellyfish randomly in the scene
+                jellyfish.object.position.set(
+                    (Math.random() - 0.5) * gameState.boundarySize,
+                    Math.random() * 80 - 40,
+                    (Math.random() - 0.5) * gameState.boundarySize
+                );
+                
+                scene.add(jellyfish.object);
+                return jellyfish;
+            }
+            
+            // Create multiple jellyfishes
+            for (let i = 0; i < gameState.jellyfishCount; i++) {
+                jellyfishes.push(createJellyfish());
+            }
+
+            // Create goal (target ring)
+            const goal = {
+                object: new THREE.Group(),
+                radius: 15,
+                active: true
+            };
+            
+            const ringGeometry = new THREE.TorusGeometry(goal.radius, 1, 16, 32);
+            const ringMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff0000,
+                emissive: 0xff0000,
+                emissiveIntensity: 0.5,
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            goal.object.add(ring);
+            
+            // Add particles inside the ring for visual effect
+            const goalParticlesGeometry = new THREE.BufferGeometry();
+            const goalParticleCount = 100;
+            const goalParticlePositions = new Float32Array(goalParticleCount * 3);
+            
+            for (let i = 0; i < goalParticleCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * goal.radius * 0.8;
+                const i3 = i * 3;
+                goalParticlePositions[i3] = Math.cos(angle) * radius;
+                goalParticlePositions[i3 + 1] = (Math.random() - 0.5) * 5;
+                goalParticlePositions[i3 + 2] = Math.sin(angle) * radius;
+            }
+            
+            goalParticlesGeometry.setAttribute('position', new THREE.BufferAttribute(goalParticlePositions, 3));
+            
+            const goalParticlesMaterial = new THREE.PointsMaterial({
+                color: 0xff5555,
+                size: 1,
+                transparent: true,
+                opacity: 0.8,
+                map: particleTexture,
+                sizeAttenuation: true,
+                depthWrite: false
+            });
+            
+            const goalParticles = new THREE.Points(goalParticlesGeometry, goalParticlesMaterial);
+            goal.object.add(goalParticles);
+            goal.particles = goalParticles;
+            
+            // Position goal
+            goal.object.position.set(0, 0, -200);
+            scene.add(goal.object);
+
+            // Controls
+            const keys = {
+                ArrowUp: false,    // Up (move upward)
+                ArrowDown: false,  // Down (move downward)
+                ArrowLeft: false,  // Left (turn left)
+                ArrowRight: false, // Right (turn right)
+                f: false,          // Forward
+                r: false,          // Reverse
+                ' ': false,        // Space
+                v: false           // Toggle view
+            };
+            
+            window.addEventListener('keydown', (e) => {
+                if (keys.hasOwnProperty(e.key)) {
+                    keys[e.key] = true;
+                    
+                    // Toggle view mode with 'v' key
+                    if (e.key === 'v' && !gameState.gameOver && !gameState.gameWon) {
+                        gameState.viewMode = gameState.viewMode === 'first' ? 'third' : 'first';
+                        document.getElementById('view-mode-text').textContent = gameState.viewMode.toUpperCase() + ' PERSON';
+                    }
+                    
+                    // Handle space key for game progression
+                    if (e.key === ' ') {
+                        if (gameState.gameOver || gameState.gameWon) {
+                            resetGame();
+                        } else if (gameState.goalReached) {
+                            nextLevel();
+                        }
+                    }
+                }
+            });
+            
+            window.addEventListener('keyup', (e) => {
+                if (keys.hasOwnProperty(e.key)) {
+                    keys[e.key] = false;
+                }
+            });
+            
+            // Handle touch for mobile
+            let touchStartX = 0;
+            let touchStartY = 0;
+            
+            document.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            });
+            
+            document.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                
+                // Calculate direction based on touch movement
+                if (touchX < touchStartX - 20) keys.ArrowLeft = true;
+                else if (touchX > touchStartX + 20) keys.ArrowRight = true;
+                else {
+                    keys.ArrowLeft = false;
+                    keys.ArrowRight = false;
+                }
+                
+                if (touchY < touchStartY - 20) keys.ArrowUp = true;
+                else if (touchY > touchStartY + 20) keys.ArrowDown = true;
+                else {
+                    keys.ArrowUp = false;
+                    keys.ArrowDown = false;
+                }
+            });
+            
+            document.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys.ArrowUp = false;
+                keys.ArrowDown = false;
+                keys.ArrowLeft = false;
+                keys.ArrowRight = false;
+            });
+
+            // Game functions
+            function updateFish(deltaTime) {
+                if (gameState.gameOver || gameState.gameWon) return;
+                
+                const time = performance.now() * 0.001;
+                
+                // Apply momentum for smoother turning
+                const turnAcceleration = 0.0005 * deltaTime;
+                const maxAngularMomentum = 0.02 * deltaTime;
+                
+                // Turn left/right with momentum
+                if (keys.ArrowLeft) {
+                    fish.angularMomentum += turnAcceleration;
+                } else if (keys.ArrowRight) {
+                    fish.angularMomentum -= turnAcceleration;
+                } else {
+                    // Gradually reduce angular momentum when not turning
+                    fish.angularMomentum *= 0.95;
+                }
+                
+                // Clamp angular momentum
+                fish.angularMomentum = Math.max(Math.min(fish.angularMomentum, maxAngularMomentum), -maxAngularMomentum);
+                
+                // Apply angular momentum to rotation
+                fish.object.rotation.y += fish.angularMomentum;
+                
+                // Update direction vector based on rotation
+                fish.direction.set(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), fish.object.rotation.y);
+                
+                // Calculate acceleration based on input
+                const acceleration = new THREE.Vector3(0, 0, 0);
+                const accelerationRate = 0.008 * deltaTime;
+                const verticalAccelerationRate = 0.003 * deltaTime; // Reduced by 50% for gentler vertical movement
+                
+                // Forward/backward movement
+                if (keys.f) {
+                    acceleration.add(fish.direction.clone().multiplyScalar(accelerationRate));
+                }
+                if (keys.r) {
+                    acceleration.add(fish.direction.clone().multiplyScalar(-accelerationRate * 0.5));
+                }
+                
+                // Up/down movement with momentum - reduced strength
+                if (keys.ArrowUp) {
+                    fish.verticalMomentum += verticalAccelerationRate;
+                } else if (keys.ArrowDown) {
+                    fish.verticalMomentum -= verticalAccelerationRate;
+                } else {
+                    // Gradually reduce vertical momentum - slightly faster decay for better control
+                    fish.verticalMomentum *= 0.96;
+                }
+                
+                // Clamp vertical momentum - reduced maximum speed
+                const maxVerticalMomentum = 0.1; // Reduced from 0.2 for gentler vertical movement
+                fish.verticalMomentum = Math.max(Math.min(fish.verticalMomentum, maxVerticalMomentum), -maxVerticalMomentum);
+                
+                // Apply vertical momentum
+                acceleration.y += fish.verticalMomentum;
+                
+                // Apply acceleration to momentum
+                fish.momentum.add(acceleration);
+                
+                // Apply drag to slow down when not accelerating (water resistance)
+                fish.momentum.multiplyScalar(0.98);
+                
+                // Add natural swimming motion (slight wobble)
+                const naturalMovement = new THREE.Vector3(
+                    Math.sin(time * fish.naturalMovement.frequency) * fish.naturalMovement.amplitude,
+                    Math.sin(time * fish.naturalMovement.frequency * 0.7) * fish.naturalMovement.amplitude * 0.3, // Reduced vertical natural movement
+                    0
+                ).applyAxisAngle(new THREE.Vector3(0, 1, 0), fish.object.rotation.y);
+                
+                // Apply momentum and natural movement to position
+                fish.object.position.add(fish.momentum);
+                fish.object.position.add(naturalMovement);
+                
+                // Keep fish within boundaries
+                const pos = fish.object.position;
+                const halfBoundary = gameState.boundarySize / 2;
+                
+                if (pos.x < -halfBoundary) pos.x = -halfBoundary;
+                if (pos.x > halfBoundary) pos.x = halfBoundary;
+                if (pos.z < -halfBoundary) pos.z = -halfBoundary;
+                if (pos.z > halfBoundary) pos.z = halfBoundary;
+                
+                // Keep fish within vertical boundaries (water volume)
+                if (pos.y < -40) pos.y = -40;
+                if (pos.y > 40) pos.y = 40;
+                
+                // Animate fish parts
+                // Tail wiggle - faster when moving forward/backward, smoother transitions
+                const movingSpeed = fish.momentum.length() * 10;
+                const tailSpeed = 3 + movingSpeed * 2;
+                const tailAmplitude = 0.3 + Math.min(movingSpeed * 0.1, 0.2);
+                tail.rotation.y = Math.sin(time * tailSpeed) * tailAmplitude;
+                
+                // Fin movement - more natural with phase difference
+                leftFin.rotation.z = Math.PI / 4 + Math.sin(time * 2.5) * 0.15;
+                rightFin.rotation.z = -Math.PI / 4 - Math.sin(time * 2.5 + 0.5) * 0.15;
+                
+                // Smooth body roll based on turning
+                const targetRoll = keys.ArrowLeft ? 0.3 : (keys.ArrowRight ? -0.3 : 0);
+                fish.object.rotation.z += (targetRoll - fish.object.rotation.z) * 0.05;
+                
+                // Smooth pitch based on vertical movement - reduced pitch effect
+                const targetPitch = fish.verticalMomentum * 1.5; // Reduced from 2.0 for less extreme pitch
+                fish.object.rotation.x += (targetPitch - fish.object.rotation.x) * 0.04; // Slower pitch transition
+                
+                // Add slight body undulation
+                fish.object.rotation.z += Math.sin(time * 1.5) * 0.01;
+                fish.object.position.y += Math.sin(time * 0.8) * 0.01;
+            }
+            
+            function updateJellyfishes(deltaTime) {
+                const time = performance.now() * 0.001;
+                
+                jellyfishes.forEach(jellyfish => {
+                    // Move jellyfish
+                    jellyfish.object.position.add(
+                        jellyfish.direction.clone().multiplyScalar(jellyfish.speed * deltaTime)
+                    );
+                    
+                    // Randomly change direction occasionally
+                    if (Math.random() < 0.005) {
+                        jellyfish.direction.set(
+                            Math.random() - 0.5,
+                            Math.random() * 0.2 - 0.1,
+                            Math.random() - 0.5
+                        ).normalize();
+                    }
+                    
+                    // Keep jellyfish within boundaries
+                    const pos = jellyfish.object.position;
+                    const halfBoundary = gameState.boundarySize / 2;
+                    
+                    if (pos.x < -halfBoundary) {
+                        pos.x = -halfBoundary;
+                        jellyfish.direction.x *= -1;
+                    }
+                    if (pos.x > halfBoundary) {
+                        pos.x = halfBoundary;
+                        jellyfish.direction.x *= -1;
+                    }
+                    if (pos.z < -halfBoundary) {
+                        pos.z = -halfBoundary;
+                        jellyfish.direction.z *= -1;
+                    }
+                    if (pos.z > halfBoundary) {
+                        pos.z = halfBoundary;
+                        jellyfish.direction.z *= -1;
+                    }
+                    
+                    // Keep jellyfish within vertical boundaries
+                    if (pos.y < -40) {
+                        pos.y = -40;
+                        jellyfish.direction.y *= -1;
+                    }
+                    if (pos.y > 40) {
+                        pos.y = 40;
+                        jellyfish.direction.y *= -1;
+                    }
+                    
+                    // Animate jellyfish
+                    // Pulsing effect
+                    const pulseScale = 0.9 + 0.2 * Math.sin(time * jellyfish.pulseSpeed + jellyfish.pulsePhase);
+                    jellyfish.object.scale.set(pulseScale, pulseScale, pulseScale);
+                    
+                    // Rotate slightly
+                    jellyfish.object.rotation.y += 0.001 * deltaTime;
+                    
+                    // Check collision with fish
+                    const distance = jellyfish.object.position.distanceTo(fish.object.position);
+                    if (distance < jellyfish.radius + fish.boundingRadius && !gameState.gameOver) {
+                        gameOver();
+                    }
+                    
+                    // Add dynamic tentacle animation
+                    if (jellyfish.tentacleGroup) {
+                        jellyfish.tentacleGroup.children.forEach((tentacle, index) => {
+                            if (tentacle.userData) {
+                                const { angle, radius, length, phase } = tentacle.userData;
+                                
+                                // Calculate wave parameters based on jellyfish movement and time
+                                const waveAmplitude = 0.3 + 0.2 * Math.sin(time * 0.5 + phase);
+                                const waveFrequency = 1.5 + 0.5 * Math.cos(time * 0.3 + phase);
+                                const flowOffset = Math.sin(time * jellyfish.pulseSpeed + phase) * 0.2;
+                                
+                                // Create new curve with dynamic control points
+                                const newCurve = new THREE.CubicBezierCurve3(
+                                    new THREE.Vector3(
+                                        Math.cos(angle + flowOffset) * radius, 
+                                        0, 
+                                        Math.sin(angle + flowOffset) * radius
+                                    ),
+                                    new THREE.Vector3(
+                                        Math.cos(angle + flowOffset * 1.5) * radius * (0.9 + 0.1 * Math.sin(time + phase)), 
+                                        -length * 0.3 * (1 + 0.1 * Math.sin(time * waveFrequency + phase)), 
+                                        Math.sin(angle + flowOffset * 1.5) * radius * (0.9 + 0.1 * Math.sin(time + phase))
+                                    ),
+                                    new THREE.Vector3(
+                                        Math.cos(angle + flowOffset * 2) * radius * 0.5 * (0.8 + 0.2 * Math.sin(time * 0.7 + phase)), 
+                                        -length * 0.6 * (1 + 0.15 * Math.sin(time * waveFrequency * 0.8 + phase)), 
+                                        Math.sin(angle + flowOffset * 2) * radius * 0.5 * (0.8 + 0.2 * Math.sin(time * 0.7 + phase))
+                                    ),
+                                    new THREE.Vector3(
+                                        Math.cos(angle + flowOffset * 3) * radius * 0.2 * (0.7 + 0.3 * Math.sin(time * 0.5 + phase)), 
+                                        -length * (1 + 0.2 * Math.sin(time * waveFrequency * 0.6 + phase)), 
+                                        Math.sin(angle + flowOffset * 3) * radius * 0.2 * (0.7 + 0.3 * Math.sin(time * 0.5 + phase))
+                                    )
+                                );
+                                
+                                // Update the tentacle geometry with the new curve
+                                const newGeometry = new THREE.TubeGeometry(newCurve, 20, 0.2, 8, false);
+                                tentacle.geometry.dispose(); // Clean up old geometry
+                                tentacle.geometry = newGeometry;
+                            }
+                        });
+                    }
+                });
+            }
+            
+            function updateGoal(deltaTime) {
+                const time = performance.now() * 0.001;
+                
+                // Rotate goal
+                goal.object.rotation.y += 0.01 * deltaTime;
+                
+                // Animate goal particles
+                goal.particles.rotation.y -= 0.005 * deltaTime;
+                
+                // Pulsing effect
+                const pulseScale = 1 + 0.05 * Math.sin(time * 2);
+                goal.object.scale.set(pulseScale, pulseScale, pulseScale);
+                
+                // Check if fish reached goal
+                if (goal.active) {
+                    const distance = goal.object.position.distanceTo(fish.object.position);
+                    if (distance < goal.radius) {
+                        winGame();
+                    }
+                }
+            }
+            
+            function updateParticles(deltaTime) {
+                const time = performance.now() * 0.001;
+                
+                // Move particles upward slowly (like bubbles)
+                const positions = particles.geometry.attributes.position.array;
+                const sizes = particles.geometry.attributes.size.array;
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    
+                    // Move upward
+                    positions[i3 + 1] += 0.05 * deltaTime * (0.5 + Math.random() * 0.5);
+                    
+                    // Wrap around when reaching the top
+                    if (positions[i3 + 1] > 50) {
+                        positions[i3 + 1] = -50;
+                        positions[i3] = (Math.random() - 0.5) * 1000;
+                        positions[i3 + 2] = (Math.random() - 0.5) * 1000;
+                    }
+                    
+                    // Slight horizontal movement
+                    positions[i3] += Math.sin(time + i * 0.1) * 0.05 * deltaTime;
+                    positions[i3 + 2] += Math.cos(time + i * 0.1) * 0.05 * deltaTime;
+                    
+                    // Pulse size
+                    sizes[i] = (Math.sin(time * 0.5 + i) * 0.5 + 1.5) * (0.5 + Math.random() * 0.5);
+                }
+                
+                particles.geometry.attributes.position.needsUpdate = true;
+                particles.geometry.attributes.size.needsUpdate = true;
+            }
+            
+            function updateCamera() {
+                if (gameState.viewMode === 'first') {
+                    // First person view - position camera at fish's eyes
+                    const fishPos = fish.object.position.clone();
+                    const fishDir = fish.direction.clone();
+                    
+                    // Position slightly above the fish's center
+                    camera.position.copy(fishPos);
+                    camera.position.y += 1;
+                    
+                    // Look in the direction the fish is facing
+                    const lookTarget = fishPos.clone().add(fishDir.multiplyScalar(10));
+                    camera.lookAt(lookTarget);
+                } else {
+                    // Third person view - position camera behind fish
+                    const fishPos = fish.object.position.clone();
+                    const fishDir = fish.direction.clone();
+                    
+                    // Position camera behind and slightly above fish
+                    const cameraOffset = fishDir.clone().multiplyScalar(-fish.cameraDistance);
+                    cameraOffset.y = fish.cameraHeight;
+                    
+                    camera.position.copy(fishPos).add(cameraOffset);
+                    camera.lookAt(fishPos);
+                }
+            }
+            
+            function updateWater(deltaTime) {
+                const time = performance.now() * 0.001;
+                
+                // Check if water material has uniforms before accessing
+                if (water.material && water.material.uniforms && water.material.uniforms['time']) {
+                    water.material.uniforms['time'].value = time * 0.5;
+                }
+                
+                // If using fallback water, animate it differently
+                if (water.material && !water.material.uniforms) {
+                    // Simple wave effect for fallback water
+                    const vertices = water.geometry.attributes.position.array;
+                    for (let i = 0; i < vertices.length; i += 3) {
+                        const x = vertices[i];
+                        const z = vertices[i + 2];
+                        vertices[i + 1] = Math.sin(x * 0.05 + time) * Math.cos(z * 0.05 + time) * 5;
+                    }
+                    water.geometry.attributes.position.needsUpdate = true;
+                    water.geometry.computeVertexNormals();
+                }
+                
+                // Move light rays
+                lightRays.children.forEach((ray, i) => {
+                    ray.position.x += Math.sin(time * 0.2 + i) * 0.1 * deltaTime;
+                    ray.position.z += Math.cos(time * 0.2 + i) * 0.1 * deltaTime;
+                    ray.rotation.z = Math.sin(time * 0.1 + i) * 0.1;
+                });
+            }
+            
+            function updateUI() {
+                document.getElementById('score').textContent = gameState.score;
+                document.getElementById('level').textContent = gameState.level;
+            }
+            
+            function gameOver() {
+                gameState.gameOver = true;
+                
+                // Show game over message
+                const messageElement = document.getElementById('game-message');
+                const titleElement = document.getElementById('message-title');
+                
+                messageElement.style.display = 'block';
+                titleElement.textContent = 'Game Over! You got stung!';
+                titleElement.style.color = 'red';
+            }
+            
+            function winGame() {
+                gameState.goalReached = true;
+                gameState.score += 100 * gameState.level; // More points for higher levels
+                
+                // Show win message
+                const messageElement = document.getElementById('game-message');
+                const titleElement = document.getElementById('message-title');
+                const textElement = document.getElementById('message-text');
+                
+                messageElement.style.display = 'block';
+                titleElement.textContent = 'Level ' + gameState.level + ' Complete!';
+                titleElement.style.color = 'green';
+                
+                if (gameState.level < 5) {
+                    textElement.textContent = 'Press Space to continue to level ' + (gameState.level + 1);
+                } else {
+                    gameState.gameWon = true;
+                    titleElement.textContent = 'You Win! Game Complete!';
+                    textElement.textContent = 'Press Space to play again';
+                }
+                
+                // Deactivate goal
+                goal.active = false;
+            }
+            
+            function nextLevel() {
+                // Increase level
+                gameState.level++;
+                gameState.goalReached = false;
+                
+                // Hide message
+                document.getElementById('game-message').style.display = 'none';
+                
+                // Make game harder based on level
+                // 1. Add more jellyfishes
+                const newJellyfishCount = Math.min(30 + (gameState.level - 1) * 20, 150);
+                const additionalJellyfishes = newJellyfishCount - jellyfishes.length;
+                
+                for (let i = 0; i < additionalJellyfishes; i++) {
+                    jellyfishes.push(createJellyfish());
+                }
+                
+                // 2. Make jellyfishes faster
+                jellyfishes.forEach(jellyfish => {
+                    jellyfish.speed = 0.05 + Math.random() * 0.1 * (1 + (gameState.level - 1) * 0.2);
+                });
+                
+                // 3. Position goal farther away or in more challenging locations
+                const goalDistance = 200 + (gameState.level - 1) * 100;
+                const randomAngle = Math.random() * Math.PI * 2;
+                
+                goal.object.position.set(
+                    Math.cos(randomAngle) * goalDistance,
+                    (Math.random() * 2 - 1) * 40 * (gameState.level / 3), // More vertical variation in higher levels
+                    Math.sin(randomAngle) * goalDistance
+                );
+                
+                // 4. Make the goal smaller in higher levels
+                const newRadius = Math.max(15 - (gameState.level - 1) * 2, 5);
+                goal.radius = newRadius;
+                goal.object.scale.set(newRadius/15, newRadius/15, newRadius/15);
+                
+                // Reactivate goal
+                goal.active = true;
+                
+                // Update UI
+                document.getElementById('level').textContent = gameState.level;
+            }
+            
+            function resetGame() {
+                // Reset game state
+                gameState.gameOver = false;
+                gameState.gameWon = false;
+                gameState.goalReached = false;
+                gameState.level = 1;
+                gameState.score = 0;
+                
+                // Hide message
+                document.getElementById('game-message').style.display = 'none';
+                
+                // Reset fish position
+                fish.object.position.set(0, 0, 0);
+                fish.object.rotation.set(0, 0, 0);
+                fish.momentum.set(0, 0, 0);
+                fish.angularMomentum = 0;
+                
+                // Reset jellyfishes - remove excess jellyfishes first
+                while (jellyfishes.length > 30) {
+                    const jellyfish = jellyfishes.pop();
+                    scene.remove(jellyfish.object);
+                }
+                
+                // Reset remaining jellyfishes
+                jellyfishes.forEach(jellyfish => {
+                    // Reset speed to level 1
+                    jellyfish.speed = 0.05 + Math.random() * 0.1;
+                    
+                    // Reset position
+                    jellyfish.object.position.set(
+                        (Math.random() - 0.5) * gameState.boundarySize,
+                        Math.random() * 80 - 40,
+                        (Math.random() - 0.5) * gameState.boundarySize
+                    );
+                    
+                    // Reset direction
+                    jellyfish.direction.set(
+                        Math.random() - 0.5,
+                        Math.random() * 0.2 - 0.1,
+                        Math.random() - 0.5
+                    ).normalize();
+                });
+                
+                // Reset goal
+                goal.radius = 15;
+                goal.object.scale.set(1, 1, 1);
+                goal.object.position.set(0, 0, -200);
+                goal.active = true;
+                
+                // Update UI
+                document.getElementById('score').textContent = gameState.score;
+                document.getElementById('level').textContent = gameState.level;
+            }
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // Animation loop
+            let lastTime = 0;
+            function animate(timestamp) {
+                const deltaTime = Math.min(timestamp - lastTime, 100); // Cap delta time to avoid huge jumps
+                lastTime = timestamp;
+                
+                // Update game elements
+                updateFish(deltaTime);
+                updateJellyfishes(deltaTime);
+                updateGoal(deltaTime);
+                updateParticles(deltaTime);
+                updateWater(deltaTime);
+                updateCamera();
+                updateUI();
+                
+                // Render scene
+                renderer.render(scene, camera);
+                
+                // Continue animation loop
+                requestAnimationFrame(animate);
+            }
+            
+            // Start animation loop
+            animate(0);
+        }
+
+        // 2D Fallback for browsers without WebGL
+        function tryFallbackRenderer() {
+            const fallbackContainer = document.getElementById('fallback-container');
+            fallbackContainer.innerHTML = '<h2>Loading 2D Game...</h2>';
+            
+            // Create a simple 2D canvas game
+            const canvas = document.createElement('canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            document.body.appendChild(canvas);
+            fallbackContainer.style.display = 'none';
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                fallbackContainer.innerHTML = '<h2>Error: Cannot create 2D canvas context</h2>';
+                fallbackContainer.style.display = 'flex';
+                return;
+            }
+            
+            // Game elements
+            const fish = {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                z: 0, // Add z-coordinate for forward/backward movement
+                width: 40,
+                height: 20,
+                color: 'orange',
+                speed: 5,
+                direction: 1, // 1 = forward, -1 = backward
+                rotation: 0, // Angle in radians for turning
+                viewMode: 'third', // 'first' or 'third'
+                cameraDistance: 100, // Distance behind fish in third person
+                fieldOfView: Math.PI / 3 // For perspective calculations
+            };
+            
+            // Create more jellyfishes for a dense field
+            const jellyfishes = [];
+            for (let i = 0; i < 50; i++) {
+                jellyfishes.push({
+                    x: Math.random() * canvas.width * 3 - canvas.width,
+                    y: Math.random() * canvas.height,
+                    z: Math.random() * 1000 - 500, // Add z-coordinate for 3D space
+                    radius: 15 + Math.random() * 10,
+                    tentacleLength: 30 + Math.random() * 20,
+                    color: `rgba(255, ${100 + Math.floor(Math.random() * 155)}, ${200 + Math.floor(Math.random() * 55)}, 0.7)`,
+                    speedX: (Math.random() - 0.5) * 2,
+                    speedY: (Math.random() - 0.5) * 2,
+                    speedZ: (Math.random() - 0.5) * 3, // Speed in z direction
+                    pulsePhase: Math.random() * Math.PI * 2
+                });
+            }
+            
+            const goal = {
+                x: canvas.width - 100,
+                y: canvas.height / 2,
+                z: -500, // Position goal ahead in 3D space
+                radius: 40,
+                color: 'red'
+            };
+            
+            // Game state
+            let gameOver = false;
+            let gameWon = false;
+            let score = 0;
+            let cameraAngle = 0; // For slight camera rotation
+            
+            // Controls
+            const keys = {
+                ArrowUp: false,
+                ArrowDown: false,
+                ArrowLeft: false,
+                ArrowRight: false,
+                ' ': false,
+                v: false // For toggling view mode
+            };
+            
+            window.addEventListener('keydown', (e) => {
+                if (keys.hasOwnProperty(e.key)) {
+                    keys[e.key] = true;
+                }
+                
+                // Toggle view mode with 'v' key
+                if (e.key === 'v') {
+                    fish.viewMode = fish.viewMode === 'first' ? 'third' : 'first';
+                }
+            });
+            
+            window.addEventListener('keyup', (e) => {
+                if (keys.hasOwnProperty(e.key)) {
+                    keys[e.key] = false;
+                }
+            });
+            
+            // Handle touch for mobile
+            let touchStartX = 0;
+            let touchStartY = 0;
+            
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            });
+            
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                
+                // Calculate direction based on touch movement
+                if (touchX < touchStartX - 20) keys.ArrowLeft = true;
+                else if (touchX > touchStartX + 20) keys.ArrowRight = true;
+                else {
+                    keys.ArrowLeft = false;
+                    keys.ArrowRight = false;
+                }
+                
+                if (touchY < touchStartY - 20) keys.ArrowUp = true;
+                else if (touchY > touchStartY + 20) keys.ArrowDown = true;
+                else {
+                    keys.ArrowUp = false;
+                    keys.ArrowDown = false;
+                }
+            });
+            
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys.ArrowUp = false;
+                keys.ArrowDown = false;
+                keys.ArrowLeft = false;
+                keys.ArrowRight = false;
+            });
+            
+            // Game loop for 2D fallback
+            function gameLoop2D() {
+                // Game logic and rendering for 2D fallback
+                // This is a simplified version of the 3D game
+                requestAnimationFrame(gameLoop2D);
+            }
+            
+            // Start the 2D game loop
+            gameLoop2D();
+        }
+    </script>
+</body>
+</html>
