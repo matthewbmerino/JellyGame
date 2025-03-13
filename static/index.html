@@ -342,78 +342,327 @@
                 },
                 cameraDistance: 15,
                 cameraHeight: 5,
-                boundingRadius: 3
+                boundingRadius: 3,
+                segments: [], // Store body segments for wave animation
+                firstPersonElements: null // Will store first-person view elements
             };
 
-            // Create fish body
-            const fishBodyGeometry = new THREE.ConeGeometry(2, 8, 16);
-            fishBodyGeometry.rotateX(Math.PI / 2);
-            const fishBodyMaterial = new THREE.MeshStandardMaterial({
+            // Create a more realistic fish with multiple segments for fluid motion
+            const fishSegmentCount = 5; // Number of body segments
+            const fishLength = 8;
+            const fishWidth = 2;
+            const fishHeight = 1.5;
+
+            // Create fish body with segments for undulating motion
+            for (let i = 0; i < fishSegmentCount; i++) {
+                const segmentPosition = i / (fishSegmentCount - 1); // 0 to 1
+                const segmentLength = fishLength / fishSegmentCount;
+                const segmentWidth = fishWidth * (1 - segmentPosition * 0.6); // Taper toward tail
+                const segmentHeight = fishHeight * (1 - segmentPosition * 0.3); // Slight taper in height
+                
+                let segmentGeometry;
+                let segmentMaterial;
+                
+                if (i === 0) {
+                    // Head segment - more rounded
+                    segmentGeometry = new THREE.SphereGeometry(segmentWidth, 16, 16);
+                    segmentGeometry.scale(1, segmentHeight/segmentWidth, 1.2); // Make slightly elongated
+                    segmentMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xff8800,
+                        metalness: 0.3,
+                        roughness: 0.7,
+                        emissive: 0x331100,
+                        emissiveIntensity: 0.2
+                    });
+                } else if (i === fishSegmentCount - 1) {
+                    // Tail segment - flatter, more fin-like
+                    const tailGeometry = new THREE.ConeGeometry(segmentWidth * 2.5, segmentLength, 4);
+                    tailGeometry.rotateX(-Math.PI / 2);
+                    tailGeometry.scale(1, 0.3, 1); // Make it flatter
+                    segmentGeometry = tailGeometry;
+                    segmentMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xff9900,
+                        metalness: 0.3,
+                        roughness: 0.7
+                    });
+                } else {
+                    // Body segments - use ellipsoids instead of cylinders for more organic shape
+                    segmentGeometry = new THREE.SphereGeometry(segmentWidth, 16, 16);
+                    // Scale to create ellipsoid shape
+                    segmentGeometry.scale(1, segmentHeight/segmentWidth, segmentLength/segmentWidth);
+                    segmentMaterial = new THREE.MeshStandardMaterial({
+                        color: new THREE.Color(
+                            0.9 + segmentPosition * 0.1, // Redder toward tail
+                            0.5 - segmentPosition * 0.2, // Less green toward tail
+                            0.0
+                        ),
+                        metalness: 0.3,
+                        roughness: 0.7,
+                        emissive: 0x331100,
+                        emissiveIntensity: 0.2 * (1 - segmentPosition) // Less emissive toward tail
+                    });
+                }
+                
+                const segment = new THREE.Mesh(segmentGeometry, segmentMaterial);
+                segment.castShadow = true;
+                
+                // Position segments with slight overlap to create a more solid appearance
+                const overlapFactor = 0.15; // 15% overlap between segments
+                segment.position.z = -segmentPosition * fishLength * (1 - overlapFactor) + fishLength/2;
+                
+                // Store reference to segment with additional properties for animation
+                fish.segments.push({
+                    mesh: segment,
+                    position: segmentPosition,
+                    baseRotationY: 0, // Base rotation for animation
+                    basePositionX: 0, // For lateral movement
+                    basePositionY: 0  // For vertical movement
+                });
+                
+                // Create a joint to connect segments (except for the first one)
+                if (i > 0) {
+                    // Create a small connector between segments
+                    const jointRadius = segmentWidth * 0.9;
+                    const jointGeometry = new THREE.SphereGeometry(jointRadius, 12, 12);
+                    const jointMaterial = new THREE.MeshStandardMaterial({
+                        color: segmentMaterial.color,
+                        metalness: 0.3,
+                        roughness: 0.7
+                    });
+                    
+                    const joint = new THREE.Mesh(jointGeometry, jointMaterial);
+                    
+                    // Position joint between current and previous segment
+                    const prevSegment = fish.segments[i-1].mesh;
+                    const jointPosition = new THREE.Vector3().lerpVectors(
+                        prevSegment.position,
+                        segment.position,
+                        0.5
+                    );
+                    joint.position.copy(jointPosition);
+                    joint.scale.set(1, 1, 0.7); // Flatten slightly in z direction
+                    
+                    // Add joint to fish
+                    fish.object.add(joint);
+                }
+                
+                fish.object.add(segment);
+                
+                // For the head segment, add eyes
+                if (i === 0) {
+                    fishBody = segment; // Store reference to head for animation
+                    
+                    // Create fish eyes - slightly larger and more prominent
+                    const eyeGeometry = new THREE.SphereGeometry(0.6, 16, 16);
+                    const eyeWhiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                    const eyePupilMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+                    
+                    const leftEye = new THREE.Group();
+                    const leftEyeWhite = new THREE.Mesh(eyeGeometry, eyeWhiteMaterial);
+                    const leftEyePupil = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.3, 16, 16),
+                        eyePupilMaterial
+                    );
+                    leftEyePupil.position.z = 0.3;
+                    leftEye.add(leftEyeWhite);
+                    leftEye.add(leftEyePupil);
+                    leftEye.position.set(segmentWidth * 0.7, segmentHeight * 0.5, segmentLength * 0.3);
+                    segment.add(leftEye);
+                    
+                    const rightEye = leftEye.clone();
+                    rightEye.position.set(-segmentWidth * 0.7, segmentHeight * 0.5, segmentLength * 0.3);
+                    segment.add(rightEye);
+                    
+                    // Add a mouth
+                    const mouthGeometry = new THREE.SphereGeometry(0.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+                    mouthGeometry.scale(0.8, 0.4, 0.6);
+                    mouthGeometry.rotateX(Math.PI);
+                    const mouthMaterial = new THREE.MeshBasicMaterial({ color: 0x330000 });
+                    const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
+                    mouth.position.set(0, -segmentHeight * 0.3, segmentLength * 0.8);
+                    segment.add(mouth);
+                }
+                
+                // For the last segment, this is our tail
+                if (i === fishSegmentCount - 1) {
+                    tail = segment; // Store reference to tail for animation
+                }
+            }
+
+            // Add a smooth body cover to make the fish appear more solid
+            const bodyShape = new THREE.Shape();
+            // Create a fish-like silhouette
+            bodyShape.moveTo(0, 0);
+            bodyShape.quadraticCurveTo(fishWidth * 0.5, fishHeight * 0.5, fishWidth * 0.7, 0);
+            bodyShape.quadraticCurveTo(fishWidth * 0.5, -fishHeight * 0.5, 0, 0);
+
+            // Create an extruded geometry for the body
+            const extrudeSettings = {
+                steps: 24,
+                depth: fishLength * 0.9,
+                bevelEnabled: true,
+                bevelThickness: fishWidth * 0.3,
+                bevelSize: fishWidth * 0.3,
+                bevelSegments: 8
+            };
+
+            const bodyGeometry = new THREE.ExtrudeGeometry(bodyShape, extrudeSettings);
+            bodyGeometry.rotateY(Math.PI / 2);
+            bodyGeometry.translate(-fishLength * 0.45, 0, 0);
+
+            // Create a gradient material for the body
+            const bodyMaterial = new THREE.MeshStandardMaterial({
                 color: 0xff8800,
-                metalness: 0.3,
-                roughness: 0.7,
+                metalness: 0.4,
+                roughness: 0.6,
                 emissive: 0x331100,
-                emissiveIntensity: 0.2
+                emissiveIntensity: 0.1,
+                transparent: true,
+                opacity: 0.85 // Slightly transparent to see the segments underneath
             });
-            const fishBody = new THREE.Mesh(fishBodyGeometry, fishBodyMaterial);
-            fishBody.castShadow = true;
-            fish.object.add(fishBody);
 
-            // Create fish tail
-            const tailGeometry = new THREE.ConeGeometry(2.5, 4, 4);
-            tailGeometry.rotateX(-Math.PI / 2);
-            const tailMaterial = new THREE.MeshStandardMaterial({
-                color: 0xff9900,
-                metalness: 0.3,
-                roughness: 0.7
-            });
-            const tail = new THREE.Mesh(tailGeometry, tailMaterial);
-            tail.position.z = -4;
-            tail.scale.y = 0.5;
-            fish.object.add(tail);
+            // Create the body mesh but don't add it yet - we'll use it for reference only
+            // const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            // fish.object.add(bodyMesh);
 
-            // Create fish fins
-            const finGeometry = new THREE.PlaneGeometry(3, 2);
+            // Create fish fins with more organic shapes
+            // Create a custom fin shape using a curve
+            const finShape = new THREE.Shape();
+            finShape.moveTo(0, 0);
+            finShape.quadraticCurveTo(1.5, 0.5, 3, 0);
+            finShape.quadraticCurveTo(1.5, -2, 0, 0);
+
+            const finGeometry = new THREE.ShapeGeometry(finShape);
             const finMaterial = new THREE.MeshStandardMaterial({
                 color: 0xff9900,
                 metalness: 0.3,
                 roughness: 0.7,
                 side: THREE.DoubleSide
             });
-            
+
+            // Add dorsal fin on top with more organic shape
+            const dorsalFinShape = new THREE.Shape();
+            dorsalFinShape.moveTo(0, 0);
+            dorsalFinShape.quadraticCurveTo(1, 2, 0, 4);
+            dorsalFinShape.quadraticCurveTo(-0.5, 2, -2, 0);
+            dorsalFinShape.quadraticCurveTo(-1, 0, 0, 0);
+
+            const dorsalFinGeometry = new THREE.ShapeGeometry(dorsalFinShape);
+            const dorsalFin = new THREE.Mesh(dorsalFinGeometry, finMaterial);
+            dorsalFin.position.set(0, fishHeight * 1.1, -fishLength * 0.2);
+            dorsalFin.rotation.y = Math.PI / 2;
+            fish.object.add(dorsalFin);
+
+            // Side fins
             const leftFin = new THREE.Mesh(finGeometry, finMaterial);
-            leftFin.position.set(2, 0, 0);
+            leftFin.position.set(fishWidth * 1.1, 0, fishLength * 0.2);
             leftFin.rotation.z = Math.PI / 4;
+            leftFin.rotation.y = -Math.PI / 6;
             fish.object.add(leftFin);
-            
+
             const rightFin = new THREE.Mesh(finGeometry, finMaterial);
-            rightFin.position.set(-2, 0, 0);
+            rightFin.position.set(-fishWidth * 1.1, 0, fishLength * 0.2);
             rightFin.rotation.z = -Math.PI / 4;
+            rightFin.rotation.y = Math.PI / 6;
             fish.object.add(rightFin);
 
-            // Create fish eyes
-            const eyeGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-            const eyeWhiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            const eyePupilMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-            
-            const leftEye = new THREE.Group();
-            const leftEyeWhite = new THREE.Mesh(eyeGeometry, eyeWhiteMaterial);
-            const leftEyePupil = new THREE.Mesh(
-                new THREE.SphereGeometry(0.25, 16, 16),
-                eyePupilMaterial
-            );
-            leftEyePupil.position.z = 0.25;
-            leftEye.add(leftEyeWhite);
-            leftEye.add(leftEyePupil);
-            leftEye.position.set(1, 1, 3);
-            fish.object.add(leftEye);
-            
-            const rightEye = leftEye.clone();
-            rightEye.position.set(-1, 1, 3);
-            fish.object.add(rightEye);
+            // Add a small anal fin at the bottom
+            const analFinShape = new THREE.Shape();
+            analFinShape.moveTo(0, 0);
+            analFinShape.quadraticCurveTo(0.5, -1, 0, -2);
+            analFinShape.quadraticCurveTo(-1, -1, -2, 0);
+            analFinShape.quadraticCurveTo(-1, 0, 0, 0);
+
+            const analFinGeometry = new THREE.ShapeGeometry(analFinShape);
+            const analFin = new THREE.Mesh(analFinGeometry, finMaterial);
+            analFin.position.set(0, -fishHeight * 0.8, -fishLength * 0.3);
+            analFin.rotation.y = Math.PI / 2;
+            fish.object.add(analFin);
 
             // Add fish to scene
             scene.add(fish.object);
+
+            // Create first-person view elements
+            fish.firstPersonElements = new THREE.Group();
+            
+            // Create peripheral fins for first-person view
+            const fpFinShape = new THREE.Shape();
+            fpFinShape.moveTo(0, 0);
+            fpFinShape.quadraticCurveTo(2, 0.5, 4, 0);
+            fpFinShape.quadraticCurveTo(2, -1.5, 0, 0);
+            
+            const fpFinGeometry = new THREE.ShapeGeometry(fpFinShape);
+            const fpFinMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff9900,
+                metalness: 0.3,
+                roughness: 0.7,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.7
+            });
+            
+            // Left peripheral fin
+            const fpLeftFin = new THREE.Mesh(fpFinGeometry, fpFinMaterial);
+            fpLeftFin.position.set(2, -1, -1);
+            fpLeftFin.rotation.z = Math.PI / 6;
+            fpLeftFin.rotation.y = Math.PI / 8;
+            fish.firstPersonElements.add(fpLeftFin);
+            
+            // Right peripheral fin
+            const fpRightFin = new THREE.Mesh(fpFinGeometry, fpFinMaterial);
+            fpRightFin.position.set(-2, -1, -1);
+            fpRightFin.rotation.z = -Math.PI / 6;
+            fpRightFin.rotation.y = -Math.PI / 8;
+            fpRightFin.scale.x = -1; // Mirror the fin
+            fish.firstPersonElements.add(fpRightFin);
+            
+            // Add subtle directional indicator (like a fish "nose")
+            const noseGeometry = new THREE.ConeGeometry(0.2, 0.5, 8);
+            const noseMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff8800,
+                transparent: true,
+                opacity: 0.3
+            });
+            const nose = new THREE.Mesh(noseGeometry, noseMaterial);
+            nose.rotation.x = -Math.PI / 2;
+            nose.position.set(0, -0.5, -1);
+            fish.firstPersonElements.add(nose);
+            
+            // Add bubbles effect for forward movement
+            const bubbleGroup = new THREE.Group();
+            const bubbleCount = 10;
+            const bubbleGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+            const bubbleMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.4
+            });
+            
+            for (let i = 0; i < bubbleCount; i++) {
+                const bubble = new THREE.Mesh(bubbleGeometry, bubbleMaterial);
+                bubble.position.set(
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 2,
+                    -3 - Math.random() * 5
+                );
+                bubble.scale.set(
+                    0.5 + Math.random() * 0.5,
+                    0.5 + Math.random() * 0.5,
+                    0.5 + Math.random() * 0.5
+                );
+                bubble.userData = {
+                    speed: 0.01 + Math.random() * 0.03,
+                    initialZ: bubble.position.z
+                };
+                bubbleGroup.add(bubble);
+            }
+            
+            fish.firstPersonElements.add(bubbleGroup);
+            fish.firstPersonElements.bubbleGroup = bubbleGroup;
+            
+            // Initially hide first-person elements
+            fish.firstPersonElements.visible = false;
+            scene.add(fish.firstPersonElements);
 
             // Create jellyfishes
             const jellyfishes = [];
@@ -654,8 +903,8 @@
                 const time = performance.now() * 0.001;
                 
                 // Apply momentum for smoother turning
-                const turnAcceleration = 0.0005 * deltaTime;
-                const maxAngularMomentum = 0.02 * deltaTime;
+                const turnAcceleration = 0.0002 * deltaTime;
+                const maxAngularMomentum = 0.01 * deltaTime;
                 
                 // Turn left/right with momentum
                 if (keys.ArrowLeft) {
@@ -664,7 +913,7 @@
                     fish.angularMomentum -= turnAcceleration;
                 } else {
                     // Gradually reduce angular momentum when not turning
-                    fish.angularMomentum *= 0.95;
+                    fish.angularMomentum *= 0.9;
                 }
                 
                 // Clamp angular momentum
@@ -678,8 +927,8 @@
                 
                 // Calculate acceleration based on input
                 const acceleration = new THREE.Vector3(0, 0, 0);
-                const accelerationRate = 0.008 * deltaTime;
-                const verticalAccelerationRate = 0.003 * deltaTime; // Reduced by 50% for gentler vertical movement
+                const accelerationRate = 0.004 * deltaTime;
+                const verticalAccelerationRate = 0.0015 * deltaTime;
                 
                 // Forward/backward movement
                 if (keys.f) {
@@ -696,11 +945,11 @@
                     fish.verticalMomentum -= verticalAccelerationRate;
                 } else {
                     // Gradually reduce vertical momentum - slightly faster decay for better control
-                    fish.verticalMomentum *= 0.96;
+                    fish.verticalMomentum *= 0.94;
                 }
                 
                 // Clamp vertical momentum - reduced maximum speed
-                const maxVerticalMomentum = 0.1; // Reduced from 0.2 for gentler vertical movement
+                const maxVerticalMomentum = 0.05;
                 fish.verticalMomentum = Math.max(Math.min(fish.verticalMomentum, maxVerticalMomentum), -maxVerticalMomentum);
                 
                 // Apply vertical momentum
@@ -710,18 +959,52 @@
                 fish.momentum.add(acceleration);
                 
                 // Apply drag to slow down when not accelerating (water resistance)
-                fish.momentum.multiplyScalar(0.98);
+                fish.momentum.multiplyScalar(0.97);
                 
-                // Add natural swimming motion (slight wobble)
-                const naturalMovement = new THREE.Vector3(
-                    Math.sin(time * fish.naturalMovement.frequency) * fish.naturalMovement.amplitude,
-                    Math.sin(time * fish.naturalMovement.frequency * 0.7) * fish.naturalMovement.amplitude * 0.3, // Reduced vertical natural movement
-                    0
-                ).applyAxisAngle(new THREE.Vector3(0, 1, 0), fish.object.rotation.y);
+                // Calculate swimming intensity based on movement speed
+                const movingSpeed = fish.momentum.length();
+                const swimmingIntensity = Math.min(movingSpeed * 15, 1);
                 
-                // Apply momentum and natural movement to position
+                // Enhanced natural swimming motion with wave propagation through body
+                // This creates a more realistic undulating motion that travels from head to tail
+                const waveFrequency = 2.5 + swimmingIntensity * 2; // Faster wave when swimming faster
+                const waveAmplitude = 0.05 + swimmingIntensity * 0.1; // Larger wave when swimming faster
+                
+                // Apply wave propagation through all segments for more natural movement
+                fish.segments.forEach((segment, index) => {
+                    if (index === 0) {
+                        // Head segment - less movement
+                        segment.mesh.rotation.y = Math.sin(time * waveFrequency) * waveAmplitude * 0.3;
+                    } else {
+                        // Body and tail segments - progressive wave with delay based on position
+                        // This creates a wave that travels from head to tail
+                        const delay = segment.position * 0.5; // Delay increases toward tail
+                        const wavePhase = time * waveFrequency - delay;
+                        
+                        // Amplitude increases toward tail
+                        const segmentAmplitude = waveAmplitude * (1 + segment.position);
+                        
+                        // Apply rotation to create undulating motion
+                        segment.mesh.rotation.y = Math.sin(wavePhase) * segmentAmplitude;
+                        
+                        // Add slight lateral movement for more natural swimming
+                        const lateralOffset = Math.sin(wavePhase) * segmentAmplitude * 0.2;
+                        segment.mesh.position.x = segment.basePositionX + lateralOffset;
+                        
+                        // Add slight vertical movement
+                        if (index > 1) { // More pronounced in rear segments
+                            const verticalOffset = Math.sin(wavePhase * 0.7) * segmentAmplitude * 0.1;
+                            segment.mesh.position.y = segment.basePositionY + verticalOffset;
+                        }
+                    }
+                });
+                
+                // Add slight vertical undulation to the whole fish
+                const verticalUndulation = Math.sin(time * 1.2) * 0.02;
+                fish.object.position.y += verticalUndulation;
+                
+                // Apply momentum to position
                 fish.object.position.add(fish.momentum);
-                fish.object.position.add(naturalMovement);
                 
                 // Keep fish within boundaries
                 const pos = fish.object.position;
@@ -736,28 +1019,36 @@
                 if (pos.y < -40) pos.y = -40;
                 if (pos.y > 40) pos.y = 40;
                 
-                // Animate fish parts
-                // Tail wiggle - faster when moving forward/backward, smoother transitions
-                const movingSpeed = fish.momentum.length() * 10;
-                const tailSpeed = 3 + movingSpeed * 2;
-                const tailAmplitude = 0.3 + Math.min(movingSpeed * 0.1, 0.2);
-                tail.rotation.y = Math.sin(time * tailSpeed) * tailAmplitude;
+                // Fin movement - more natural with phase difference and speed-based amplitude
+                const finSpeed = 2 + swimmingIntensity * 3;
+                const finAmplitude = 0.15 + swimmingIntensity * 0.2;
+                leftFin.rotation.z = Math.PI / 4 + Math.sin(time * finSpeed) * finAmplitude;
+                rightFin.rotation.z = -Math.PI / 4 - Math.sin(time * finSpeed + 0.5) * finAmplitude;
                 
-                // Fin movement - more natural with phase difference
-                leftFin.rotation.z = Math.PI / 4 + Math.sin(time * 2.5) * 0.15;
-                rightFin.rotation.z = -Math.PI / 4 - Math.sin(time * 2.5 + 0.5) * 0.15;
+                // Add slight fin flapping when changing direction
+                if (Math.abs(fish.angularMomentum) > 0.001) {
+                    const turnDirection = Math.sign(fish.angularMomentum);
+                    leftFin.rotation.z += turnDirection * 0.2 * Math.abs(fish.angularMomentum) * 50;
+                    rightFin.rotation.z -= turnDirection * 0.2 * Math.abs(fish.angularMomentum) * 50;
+                }
                 
-                // Smooth body roll based on turning
-                const targetRoll = keys.ArrowLeft ? 0.3 : (keys.ArrowRight ? -0.3 : 0);
+                // Animate dorsal and anal fins with subtle movement
+                dorsalFin.rotation.z = Math.sin(time * 1.5) * 0.1;
+                analFin.rotation.z = Math.sin(time * 1.5 + 0.5) * 0.1;
+                
+                // Smooth body roll based on turning - more pronounced when moving faster
+                const turnIntensity = Math.min(movingSpeed * 10, 1);
+                const targetRoll = keys.ArrowLeft ? 0.3 * turnIntensity : (keys.ArrowRight ? -0.3 * turnIntensity : 0);
                 fish.object.rotation.z += (targetRoll - fish.object.rotation.z) * 0.05;
                 
-                // Smooth pitch based on vertical movement - reduced pitch effect
-                const targetPitch = fish.verticalMomentum * 1.5; // Reduced from 2.0 for less extreme pitch
-                fish.object.rotation.x += (targetPitch - fish.object.rotation.x) * 0.04; // Slower pitch transition
+                // Smooth pitch based on vertical movement
+                const targetPitch = fish.verticalMomentum * 2;
+                fish.object.rotation.x += (targetPitch - fish.object.rotation.x) * 0.04;
                 
-                // Add slight body undulation
-                fish.object.rotation.z += Math.sin(time * 1.5) * 0.01;
-                fish.object.position.y += Math.sin(time * 0.8) * 0.01;
+                // Add slight head movement when changing direction
+                if (Math.abs(fish.angularMomentum) > 0.0005) {
+                    fish.segments[0].mesh.rotation.y += -fish.angularMomentum * 20; // Head turns slightly in direction of turn
+                }
             }
             
             function updateJellyfishes(deltaTime) {
@@ -928,13 +1219,60 @@
                     const fishPos = fish.object.position.clone();
                     const fishDir = fish.direction.clone();
                     
-                    // Position slightly above the fish's center
-                    camera.position.copy(fishPos);
-                    camera.position.y += 1;
+                    // Get the head segment position
+                    const headSegment = fish.segments[0].mesh;
+                    const headWorldPos = new THREE.Vector3();
+                    headSegment.getWorldPosition(headWorldPos);
+                    
+                    // Position camera at the head, slightly above
+                    camera.position.copy(headWorldPos);
+                    camera.position.y += 0.5;
                     
                     // Look in the direction the fish is facing
                     const lookTarget = fishPos.clone().add(fishDir.multiplyScalar(10));
                     camera.lookAt(lookTarget);
+                    
+                    // Make fish body invisible in first person mode to avoid blocking the view
+                    fish.segments.forEach((segment, index) => {
+                        // Hide all segments except fins
+                        segment.mesh.visible = false;
+                    });
+                    
+                    // Hide regular fins
+                    leftFin.visible = false;
+                    rightFin.visible = false;
+                    dorsalFin.visible = false;
+                    analFin.visible = false;
+                    
+                    // Show first-person elements
+                    fish.firstPersonElements.visible = true;
+                    
+                    // Position first-person elements relative to camera
+                    fish.firstPersonElements.position.copy(camera.position);
+                    fish.firstPersonElements.rotation.copy(camera.rotation);
+                    
+                    // Animate first-person fins based on movement
+                    const movingSpeed = fish.momentum.length();
+                    const time = performance.now() * 0.001;
+                    
+                    // Fin movement - more natural with phase difference and speed-based amplitude
+                    const finSpeed = 2 + movingSpeed * 15;
+                    const finAmplitude = 0.1 + movingSpeed * 0.3;
+                    
+                    // Animate peripheral fins
+                    fpLeftFin.rotation.z = Math.PI / 6 + Math.sin(time * finSpeed) * finAmplitude;
+                    fpRightFin.rotation.z = -Math.PI / 6 - Math.sin(time * finSpeed + 0.5) * finAmplitude;
+                    
+                    // Add slight fin flapping when changing direction
+                    if (Math.abs(fish.angularMomentum) > 0.001) {
+                        const turnDirection = Math.sign(fish.angularMomentum);
+                        fpLeftFin.rotation.z += turnDirection * 0.2 * Math.abs(fish.angularMomentum) * 50;
+                        fpRightFin.rotation.z -= turnDirection * 0.2 * Math.abs(fish.angularMomentum) * 50;
+                    }
+                    
+                    // Update bubbles
+                    updateFirstPersonBubbles(movingSpeed);
+                    
                 } else {
                     // Third person view - position camera behind fish
                     const fishPos = fish.object.position.clone();
@@ -946,7 +1284,50 @@
                     
                     camera.position.copy(fishPos).add(cameraOffset);
                     camera.lookAt(fishPos);
+                    
+                    // Make all fish parts visible in third person mode
+                    fish.segments.forEach((segment) => {
+                        segment.mesh.visible = true;
+                    });
+                    
+                    leftFin.visible = true;
+                    rightFin.visible = true;
+                    dorsalFin.visible = true;
+                    analFin.visible = true;
+                    
+                    // Hide first-person elements
+                    fish.firstPersonElements.visible = false;
                 }
+            }
+            
+            function updateFirstPersonBubbles(movingSpeed) {
+                // Only show bubbles when moving forward
+                const bubbleGroup = fish.firstPersonElements.bubbleGroup;
+                const time = performance.now() * 0.001;
+                
+                // Set bubble group visibility based on speed
+                bubbleGroup.visible = movingSpeed > 0.05;
+                
+                // Update each bubble
+                bubbleGroup.children.forEach(bubble => {
+                    // Move bubble backward (creating illusion of moving forward)
+                    bubble.position.z += bubble.userData.speed * (1 + movingSpeed * 10);
+                    
+                    // Add slight wobble
+                    bubble.position.x += Math.sin(time * 2 + bubble.position.z) * 0.01;
+                    bubble.position.y += Math.cos(time * 2 + bubble.position.z) * 0.01;
+                    
+                    // Reset bubble position when it goes too far back
+                    if (bubble.position.z > 0) {
+                        bubble.position.z = bubble.userData.initialZ;
+                        bubble.position.x = (Math.random() - 0.5) * 2;
+                        bubble.position.y = (Math.random() - 0.5) * 2;
+                    }
+                    
+                    // Fade out bubbles as they get closer to the camera
+                    const opacity = Math.min((-bubble.position.z) / 3, 1) * 0.4;
+                    bubble.material.opacity = opacity;
+                });
             }
             
             function updateWater(deltaTime) {
