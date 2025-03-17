@@ -2,20 +2,57 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Fish vs Jellyfish - 3D</title>
+    <title>JellyGame</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: Arial, sans-serif; }
         canvas { display: block; }
         #error-container { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; background: rgba(255,0,0,0.8); color: white; z-index: 1000; text-align: center; }
-        #fallback-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #001428; z-index: 999; }
+        #fallback-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; justify-content: center; align-items: center; background: #001428; z-index: 999; }
         .fallback-button { margin-top: 20px; padding: 10px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; }
         #ui-container { position: fixed; top: 10px; left: 10px; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; }
         #view-mode { position: fixed; top: 10px; right: 10px; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; }
         #controls-info { position: fixed; bottom: 10px; left: 10px; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; }
         #game-message { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; background: rgba(0,0,0,0.7); border-radius: 10px; text-align: center; display: none; }
+        
+        /* Virtual joystick styles */
+        #mobile-controls { position: fixed; bottom: 0; left: 0; width: 100%; height: 40%; z-index: 100; display: none; }
+        .joystick-container { position: absolute; width: 120px; height: 120px; background-color: rgba(255, 255, 255, 0.1); border-radius: 50%; }
+        .joystick-thumb { position: absolute; width: 60px; height: 60px; background-color: rgba(255, 255, 255, 0.3); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        #left-joystick { bottom: 30px; left: 30px; }
+        #right-joystick { bottom: 30px; right: 30px; }
+        #view-toggle-btn { position: absolute; top: 20px; right: 20px; width: 60px; height: 60px; background-color: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; }
+        
+        /* Media query to show mobile controls only on touch devices */
+        @media (hover: none) and (pointer: coarse) {
+            #mobile-controls { display: block; }
+            #controls-info { display: none; }
+        }
+
+        /* Minimap styles */
+        #minimap-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            background-color: rgba(0, 40, 0, 0.7);
+            border: 2px solid rgba(0, 255, 0, 0.3);
+            border-radius: 50%;
+            overflow: hidden;
+            z-index: 1000;
+        }
+        #minimap {
+            width: 100%;
+            height: 100%;
+        }
     </style>
 </head>
 <body>
+    <!-- Minimap -->
+    <div id="minimap-container">
+        <canvas id="minimap"></canvas>
+    </div>
+
     <!-- Fallback container for non-WebGL browsers -->
     <div id="fallback-container">
         <h1>WebGL Not Available</h1>
@@ -46,6 +83,17 @@
     <div id="game-message">
         <h2 id="message-title"></h2>
         <p id="message-text">Press Space to continue</p>
+    </div>
+
+    <!-- Mobile controls -->
+    <div id="mobile-controls">
+        <div id="left-joystick" class="joystick-container">
+            <div class="joystick-thumb"></div>
+        </div>
+        <div id="right-joystick" class="joystick-container">
+            <div class="joystick-thumb"></div>
+        </div>
+        <div id="view-toggle-btn">V</div>
     </div>
 
     <!-- Include Three.js and required libraries -->
@@ -116,6 +164,9 @@
                     if (webglStatus.supported) {
                         try {
                             initGame();
+                            
+                            // Initialize joystick positions after game is loaded
+                            setTimeout(initJoystickPositions, 500);
                         } catch (error) {
                             console.error("Error initializing 3D game:", error);
                             document.getElementById('fallback-container').style.display = 'flex';
@@ -143,6 +194,9 @@
                 if (webglStatus.supported) {
                     try {
                         initGame();
+                        
+                        // Initialize joystick positions after game is loaded
+                        setTimeout(initJoystickPositions, 500);
                     } catch (error) {
                         console.error("Error initializing 3D game:", error);
                         document.getElementById('fallback-container').style.display = 'flex';
@@ -1504,8 +1558,93 @@
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
+                
+                // Update joystick positions on resize
+                initJoystickPositions();
             });
             
+            // Update UI
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('level').textContent = gameState.level;
+            
+            // Initialize minimap
+            const minimapCanvas = document.getElementById('minimap');
+            const minimapCtx = minimapCanvas.getContext('2d');
+            const minimapSize = 150;
+            minimapCanvas.width = minimapSize;
+            minimapCanvas.height = minimapSize;
+            const minimapScale = minimapSize / gameState.boundarySize;
+
+            function updateMinimap() {
+                // Clear minimap
+                minimapCtx.fillStyle = 'rgba(0, 40, 0, 0.7)';
+                minimapCtx.fillRect(0, 0, minimapSize, minimapSize);
+
+                // Draw radar sweep effect
+                const time = performance.now() * 0.001;
+                const sweepAngle = (time % 4) * Math.PI / 2;
+                minimapCtx.save();
+                minimapCtx.translate(minimapSize/2, minimapSize/2);
+                minimapCtx.rotate(sweepAngle);
+                
+                // Create sweep effect using regular gradient
+                const gradient = minimapCtx.createRadialGradient(0, 0, 0, 0, 0, minimapSize/2);
+                gradient.addColorStop(0, 'rgba(0, 255, 0, 0.2)');
+                gradient.addColorStop(1, 'rgba(0, 40, 0, 0)');
+                minimapCtx.fillStyle = gradient;
+                minimapCtx.beginPath();
+                minimapCtx.moveTo(0, 0);
+                minimapCtx.arc(0, 0, minimapSize, -Math.PI/8, Math.PI/8);
+                minimapCtx.closePath();
+                minimapCtx.fill();
+                minimapCtx.restore();
+
+                // Draw grid lines
+                minimapCtx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
+                minimapCtx.beginPath();
+                minimapCtx.arc(minimapSize/2, minimapSize/2, minimapSize/4, 0, Math.PI * 2);
+                minimapCtx.stroke();
+                minimapCtx.beginPath();
+                minimapCtx.arc(minimapSize/2, minimapSize/2, minimapSize/2, 0, Math.PI * 2);
+                minimapCtx.stroke();
+
+                // Draw player (center dot)
+                const playerX = (fish.object.position.x + gameState.boundarySize/2) * minimapScale;
+                const playerZ = (fish.object.position.z + gameState.boundarySize/2) * minimapScale;
+                minimapCtx.fillStyle = 'rgb(0, 255, 0)';
+                minimapCtx.beginPath();
+                minimapCtx.arc(playerX, playerZ, 3, 0, Math.PI * 2);
+                minimapCtx.fill();
+
+                // Draw player direction indicator
+                const dirLength = 8;
+                const dirX = playerX + Math.sin(fish.object.rotation.y) * dirLength;
+                const dirZ = playerZ + Math.cos(fish.object.rotation.y) * dirLength;
+                minimapCtx.strokeStyle = 'rgb(0, 255, 0)';
+                minimapCtx.beginPath();
+                minimapCtx.moveTo(playerX, playerZ);
+                minimapCtx.lineTo(dirX, dirZ);
+                minimapCtx.stroke();
+
+                // Draw goal
+                const goalX = (goal.object.position.x + gameState.boundarySize/2) * minimapScale;
+                const goalZ = (goal.object.position.z + gameState.boundarySize/2) * minimapScale;
+                minimapCtx.fillStyle = 'red';
+                minimapCtx.beginPath();
+                minimapCtx.arc(goalX, goalZ, 4, 0, Math.PI * 2);
+                minimapCtx.fill();
+
+                // Draw jellyfishes
+                jellyfishes.forEach(jellyfish => {
+                    const jellyX = (jellyfish.object.position.x + gameState.boundarySize/2) * minimapScale;
+                    const jellyZ = (jellyfish.object.position.z + gameState.boundarySize/2) * minimapScale;
+                    minimapCtx.fillStyle = 'purple';
+                    minimapCtx.beginPath();
+                    minimapCtx.arc(jellyX, jellyZ, 2, 0, Math.PI * 2);
+                    minimapCtx.fill();
+                });
+            }
+
             // Animation loop
             let lastTime = 0;
             function animate(timestamp) {
@@ -1520,6 +1659,7 @@
                 updateWater(deltaTime);
                 updateCamera();
                 updateUI();
+                updateMinimap(); // Add minimap update
                 
                 // Render scene
                 renderer.render(scene, camera);
@@ -1626,42 +1766,18 @@
             });
             
             // Handle touch for mobile
-            let touchStartX = 0;
-            let touchStartY = 0;
+            // Use the same joystick implementation for 2D fallback
+            canvas.addEventListener('touchstart', handleJoystickTouch, { passive: false });
+            canvas.addEventListener('touchmove', handleJoystickTouch, { passive: false });
+            canvas.addEventListener('touchend', handleJoystickTouch, { passive: false });
+            canvas.addEventListener('touchcancel', handleJoystickTouch, { passive: false });
             
-            canvas.addEventListener('touchstart', (e) => {
+            // Add view toggle button for 2D mode as well
+            document.getElementById('view-toggle-btn').addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-            });
-            
-            canvas.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                const touchX = e.touches[0].clientX;
-                const touchY = e.touches[0].clientY;
-                
-                // Calculate direction based on touch movement
-                if (touchX < touchStartX - 20) keys.ArrowLeft = true;
-                else if (touchX > touchStartX + 20) keys.ArrowRight = true;
-                else {
-                    keys.ArrowLeft = false;
-                    keys.ArrowRight = false;
+                if (!gameOver && !gameWon) {
+                    fish.viewMode = fish.viewMode === 'first' ? 'third' : 'first';
                 }
-                
-                if (touchY < touchStartY - 20) keys.ArrowUp = true;
-                else if (touchY > touchStartY + 20) keys.ArrowDown = true;
-                else {
-                    keys.ArrowUp = false;
-                    keys.ArrowDown = false;
-                }
-            });
-            
-            canvas.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                keys.ArrowUp = false;
-                keys.ArrowDown = false;
-                keys.ArrowLeft = false;
-                keys.ArrowRight = false;
             });
             
             // Game loop for 2D fallback
@@ -1674,6 +1790,214 @@
             // Start the 2D game loop
             gameLoop2D();
         }
+
+        // Handle touch for mobile
+        // Virtual joystick implementation
+        const joysticks = {
+            left: {
+                active: false,
+                container: document.getElementById('left-joystick'),
+                thumb: document.getElementById('left-joystick').querySelector('.joystick-thumb'),
+                centerX: 0,
+                centerY: 0,
+                currentX: 0,
+                currentY: 0,
+                maxDistance: 40, // Maximum distance the thumb can move from center
+                verticalAxis: 0, // -1 to 1 (up/down)
+                horizontalAxis: 0 // -1 to 1 (left/right)
+            },
+            right: {
+                active: false,
+                container: document.getElementById('right-joystick'),
+                thumb: document.getElementById('right-joystick').querySelector('.joystick-thumb'),
+                centerX: 0,
+                centerY: 0,
+                currentX: 0,
+                currentY: 0,
+                maxDistance: 40,
+                verticalAxis: 0,
+                horizontalAxis: 0
+            }
+        };
+        
+        // Initialize joystick centers
+        function initJoystickPositions() {
+            const leftRect = joysticks.left.container.getBoundingClientRect();
+            joysticks.left.centerX = leftRect.left + leftRect.width / 2;
+            joysticks.left.centerY = leftRect.top + leftRect.height / 2;
+            
+            const rightRect = joysticks.right.container.getBoundingClientRect();
+            joysticks.right.centerX = rightRect.left + rightRect.width / 2;
+            joysticks.right.centerY = rightRect.top + rightRect.height / 2;
+        }
+        
+        // Call this on window resize
+        window.addEventListener('resize', initJoystickPositions);
+        
+        // Initialize after DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', initJoystickPositions);
+        
+        // Handle joystick touch events
+        function handleJoystickTouch(e) {
+            e.preventDefault();
+            
+            // Process each touch
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                const touchX = touch.clientX;
+                const touchY = touch.clientY;
+                
+                // Determine which joystick is being touched
+                const leftRect = joysticks.left.container.getBoundingClientRect();
+                const rightRect = joysticks.right.container.getBoundingClientRect();
+                
+                // Check if touch is on left joystick
+                if (touchX >= leftRect.left && touchX <= leftRect.right && 
+                    touchY >= leftRect.top && touchY <= leftRect.bottom) {
+                    joysticks.left.active = true;
+                    joysticks.left.currentX = touchX;
+                    joysticks.left.currentY = touchY;
+                    updateJoystickPosition('left');
+                }
+                
+                // Check if touch is on right joystick
+                if (touchX >= rightRect.left && touchX <= rightRect.right && 
+                    touchY >= rightRect.top && touchY <= rightRect.bottom) {
+                    joysticks.right.active = true;
+                    joysticks.right.currentX = touchX;
+                    joysticks.right.currentY = touchY;
+                    updateJoystickPosition('right');
+                }
+            }
+            
+            // If no touches on joysticks, reset them
+            let leftTouchFound = false;
+            let rightTouchFound = false;
+            
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                const touchX = touch.clientX;
+                const touchY = touch.clientY;
+                
+                const leftRect = joysticks.left.container.getBoundingClientRect();
+                const rightRect = joysticks.right.container.getBoundingClientRect();
+                
+                if (touchX >= leftRect.left && touchX <= leftRect.right && 
+                    touchY >= leftRect.top && touchY <= leftRect.bottom) {
+                    leftTouchFound = true;
+                }
+                
+                if (touchX >= rightRect.left && touchX <= rightRect.right && 
+                    touchY >= rightRect.top && touchY <= rightRect.bottom) {
+                    rightTouchFound = true;
+                }
+            }
+            
+            if (!leftTouchFound) {
+                resetJoystick('left');
+            }
+            
+            if (!rightTouchFound) {
+                resetJoystick('right');
+            }
+            
+            // Update game controls based on joystick positions
+            updateGameControlsFromJoysticks();
+        }
+        
+        function updateJoystickPosition(joystickId) {
+            const joystick = joysticks[joystickId];
+            
+            // Calculate distance from center
+            const deltaX = joystick.currentX - joystick.centerX;
+            const deltaY = joystick.currentY - joystick.centerY;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            // Normalize to get direction
+            let normalizedX = deltaX / distance;
+            let normalizedY = deltaY / distance;
+            
+            // Limit distance to max radius
+            const actualDistance = Math.min(distance, joystick.maxDistance);
+            
+            // Calculate new position
+            const newX = joystick.centerX + normalizedX * actualDistance;
+            const newY = joystick.centerY + normalizedY * actualDistance;
+            
+            // Update thumb position
+            joystick.thumb.style.left = newX + 'px';
+            joystick.thumb.style.top = newY + 'px';
+            
+            // Update axis values (-1 to 1)
+            joystick.horizontalAxis = deltaX / joystick.maxDistance;
+            joystick.verticalAxis = deltaY / joystick.maxDistance;
+            
+            // Clamp values
+            joystick.horizontalAxis = Math.max(-1, Math.min(1, joystick.horizontalAxis));
+            joystick.verticalAxis = Math.max(-1, Math.min(1, joystick.verticalAxis));
+        }
+        
+        function resetJoystick(joystickId) {
+            const joystick = joysticks[joystickId];
+            joystick.active = false;
+            joystick.horizontalAxis = 0;
+            joystick.verticalAxis = 0;
+            
+            // Reset thumb position to center
+            joystick.thumb.style.left = '50%';
+            joystick.thumb.style.top = '50%';
+            joystick.thumb.style.transform = 'translate(-50%, -50%)';
+        }
+        
+        function updateGameControlsFromJoysticks() {
+            // Left joystick controls movement (up/down)
+            if (joysticks.left.active) {
+                keys.ArrowUp = joysticks.left.verticalAxis < -0.3;
+                keys.ArrowDown = joysticks.left.verticalAxis > 0.3;
+            } else {
+                keys.ArrowUp = false;
+                keys.ArrowDown = false;
+            }
+            
+            // Right joystick controls turning (left/right) and forward/backward
+            if (joysticks.right.active) {
+                keys.ArrowLeft = joysticks.right.horizontalAxis < -0.3;
+                keys.ArrowRight = joysticks.right.horizontalAxis > 0.3;
+                keys.f = joysticks.right.verticalAxis < -0.3; // Forward when pushing up
+                keys.r = joysticks.right.verticalAxis > 0.3;  // Backward when pushing down
+            } else {
+                keys.ArrowLeft = false;
+                keys.ArrowRight = false;
+                keys.f = false;
+                keys.r = false;
+            }
+        }
+        
+        // Add touch event listeners
+        document.addEventListener('touchstart', handleJoystickTouch, { passive: false });
+        document.addEventListener('touchmove', handleJoystickTouch, { passive: false });
+        document.addEventListener('touchend', handleJoystickTouch, { passive: false });
+        document.addEventListener('touchcancel', handleJoystickTouch, { passive: false });
+        
+        // Add view toggle button functionality
+        document.getElementById('view-toggle-btn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!gameState.gameOver && !gameState.gameWon) {
+                gameState.viewMode = gameState.viewMode === 'first' ? 'third' : 'first';
+                document.getElementById('view-mode-text').textContent = gameState.viewMode.toUpperCase() + ' PERSON';
+            }
+        });
+        
+        // Add touch event listener to game message for mobile users
+        document.getElementById('game-message').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            // Simulate space key press
+            if (gameState.gameOver || gameState.gameWon) {
+                resetGame();
+            } else if (gameState.goalReached) {
+                nextLevel();
+            }
+        });
     </script>
 </body>
 </html>
