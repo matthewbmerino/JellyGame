@@ -1873,9 +1873,10 @@
                 centerY: 0,
                 currentX: 0,
                 currentY: 0,
-                maxDistance: 40, // Maximum distance the thumb can move from center
-                verticalAxis: 0, // -1 to 1 (up/down)
-                horizontalAxis: 0 // -1 to 1 (left/right)
+                maxDistance: 40,
+                verticalAxis: 0,
+                horizontalAxis: 0,
+                touchId: null // Add touch identifier tracking
             },
             right: {
                 active: false,
@@ -1887,99 +1888,73 @@
                 currentY: 0,
                 maxDistance: 40,
                 verticalAxis: 0,
-                horizontalAxis: 0
+                horizontalAxis: 0,
+                touchId: null // Add touch identifier tracking
             }
         };
         
         // Initialize joystick centers
         function initJoystickPositions() {
-            const leftRect = joysticks.left.container.getBoundingClientRect();
-            joysticks.left.centerX = leftRect.left + leftRect.width / 2;
-            joysticks.left.centerY = leftRect.top + leftRect.height / 2;
-            
-            const rightRect = joysticks.right.container.getBoundingClientRect();
-            joysticks.right.centerX = rightRect.left + rightRect.width / 2;
-            joysticks.right.centerY = rightRect.top + rightRect.height / 2;
+            ['left', 'right'].forEach(side => {
+                const joystick = joysticks[side];
+                const rect = joystick.container.getBoundingClientRect();
+                joystick.centerX = rect.width / 2;
+                joystick.centerY = rect.height / 2;
+            });
         }
-        
-        // Call this on window resize
-        window.addEventListener('resize', initJoystickPositions);
-        
-        // Initialize after DOM is fully loaded
-        document.addEventListener('DOMContentLoaded', initJoystickPositions);
         
         // Handle joystick touch events
         function handleJoystickTouch(e) {
             e.preventDefault();
             
-            // Process each touch
-            for (let i = 0; i < e.touches.length; i++) {
-                const touch = e.touches[i];
+            // Handle touch end/cancel
+            if (e.type === 'touchend' || e.type === 'touchcancel') {
+                // Find touches that were removed
+                const activeTouches = Array.from(e.touches);
+                ['left', 'right'].forEach(side => {
+                    const joystick = joysticks[side];
+                    if (joystick.touchId !== null && !activeTouches.find(touch => touch.identifier === joystick.touchId)) {
+                        resetJoystick(side);
+                    }
+                });
+                return;
+            }
+
+            // Handle each touch
+            Array.from(e.touches).forEach(touch => {
                 const touchX = touch.clientX;
                 const touchY = touch.clientY;
-                
-                // Determine which joystick is being touched
-                const leftRect = joysticks.left.container.getBoundingClientRect();
-                const rightRect = joysticks.right.container.getBoundingClientRect();
-                
-                // Check if touch is on left joystick
-                if (touchX >= leftRect.left && touchX <= leftRect.right && 
-                    touchY >= leftRect.top && touchY <= leftRect.bottom) {
-                    joysticks.left.active = true;
-                    joysticks.left.currentX = touchX;
-                    joysticks.left.currentY = touchY;
-                    updateJoystickPosition('left');
-                }
-                
-                // Check if touch is on right joystick
-                if (touchX >= rightRect.left && touchX <= rightRect.right && 
-                    touchY >= rightRect.top && touchY <= rightRect.bottom) {
-                    joysticks.right.active = true;
-                    joysticks.right.currentX = touchX;
-                    joysticks.right.currentY = touchY;
-                    updateJoystickPosition('right');
-                }
-            }
-            
-            // If no touches on joysticks, reset them
-            let leftTouchFound = false;
-            let rightTouchFound = false;
-            
-            for (let i = 0; i < e.touches.length; i++) {
-                const touch = e.touches[i];
-                const touchX = touch.clientX;
-                const touchY = touch.clientY;
-                
-                const leftRect = joysticks.left.container.getBoundingClientRect();
-                const rightRect = joysticks.right.container.getBoundingClientRect();
-                
-                if (touchX >= leftRect.left && touchX <= leftRect.right && 
-                    touchY >= leftRect.top && touchY <= leftRect.bottom) {
-                    leftTouchFound = true;
-                }
-                
-                if (touchX >= rightRect.left && touchX <= rightRect.right && 
-                    touchY >= rightRect.top && touchY <= rightRect.bottom) {
-                    rightTouchFound = true;
-                }
-            }
-            
-            if (!leftTouchFound) {
-                resetJoystick('left');
-            }
-            
-            if (!rightTouchFound) {
-                resetJoystick('right');
-            }
-            
-            // Update game controls based on joystick positions
+
+                ['left', 'right'].forEach(side => {
+                    const joystick = joysticks[side];
+                    const rect = joystick.container.getBoundingClientRect();
+
+                    // Check if this touch is within this joystick's bounds
+                    if (touchX >= rect.left && touchX <= rect.right && 
+                        touchY >= rect.top && touchY <= rect.bottom) {
+                        
+                        // If this joystick isn't active or this is the touch controlling it
+                        if (!joystick.active || joystick.touchId === touch.identifier) {
+                            joystick.active = true;
+                            joystick.touchId = touch.identifier;
+                            
+                            // Calculate position relative to joystick container
+                            joystick.currentX = touchX - rect.left;
+                            joystick.currentY = touchY - rect.top;
+                            updateJoystickPosition(side);
+                        }
+                    }
+                });
+            });
+
+            // Update game controls
             updateGameControlsFromJoysticks();
         }
         
         function updateJoystickPosition(joystickId) {
             const joystick = joysticks[joystickId];
             
-            // Calculate distance from center
+            // Calculate distance from center relative to the joystick container
             const deltaX = joystick.currentX - joystick.centerX;
             const deltaY = joystick.currentY - joystick.centerY;
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -1987,55 +1962,36 @@
             if (distance === 0) {
                 joystick.horizontalAxis = 0;
                 joystick.verticalAxis = 0;
+                joystick.thumb.style.transform = 'translate(-50%, -50%)';
                 return;
             }
             
-            // Normalize to get direction
-            let normalizedX = deltaX / distance;
-            let normalizedY = deltaY / distance;
-            
             // Limit distance to max radius
             const actualDistance = Math.min(distance, joystick.maxDistance);
+            const scale = actualDistance / distance;
             
-            // Calculate new position
-            const newX = joystick.centerX + normalizedX * actualDistance;
-            const newY = joystick.centerY + normalizedY * actualDistance;
+            // Calculate normalized position
+            const normalizedX = deltaX * scale;
+            const normalizedY = deltaY * scale;
             
-            // Update thumb position
-            joystick.thumb.style.left = newX + 'px';
-            joystick.thumb.style.top = newY + 'px';
+            // Update thumb position relative to center
+            joystick.thumb.style.transform = `translate(calc(-50% + ${normalizedX}px), calc(-50% + ${normalizedY}px))`;
             
             // Update axis values (-1 to 1)
-            // For more precise control, use the actual distance ratio
-            const distanceRatio = actualDistance / joystick.maxDistance;
-            joystick.horizontalAxis = (deltaX / distance) * distanceRatio;
-            joystick.verticalAxis = (deltaY / distance) * distanceRatio;
+            joystick.horizontalAxis = normalizedX / joystick.maxDistance;
+            joystick.verticalAxis = normalizedY / joystick.maxDistance;
             
             // Clamp values
             joystick.horizontalAxis = Math.max(-1, Math.min(1, joystick.horizontalAxis));
             joystick.verticalAxis = Math.max(-1, Math.min(1, joystick.verticalAxis));
-            
-            // Debug output for right joystick
-            if (joystickId === 'right') {
-                console.log('Right joystick position:', {
-                    deltaY,
-                    distance,
-                    actualDistance,
-                    distanceRatio,
-                    verticalAxis: joystick.verticalAxis
-                });
-            }
         }
         
         function resetJoystick(joystickId) {
             const joystick = joysticks[joystickId];
             joystick.active = false;
+            joystick.touchId = null;
             joystick.horizontalAxis = 0;
             joystick.verticalAxis = 0;
-            
-            // Reset thumb position to center
-            joystick.thumb.style.left = '50%';
-            joystick.thumb.style.top = '50%';
             joystick.thumb.style.transform = 'translate(-50%, -50%)';
         }
         
@@ -2053,33 +2009,22 @@
                 keys.ArrowRight = false;
             }
             
-            // Right joystick ONLY controls forward/backward movement
-            // Use a more lenient threshold and ignore horizontal movement completely
+            // Right joystick controls forward/backward movement
             if (joysticks.right.active) {
-                // Forward when pushing up (negative vertical axis)
-                // Backward when pushing down (positive vertical axis)
                 const verticalValue = joysticks.right.verticalAxis;
-                keys.f = verticalValue < -0.2; // More lenient threshold
-                keys.r = verticalValue > 0.2;  // More lenient threshold
-                
-                // Debug output to help diagnose issues
-                console.log('Right joystick:', {
-                    active: joysticks.right.active,
-                    verticalAxis: verticalValue,
-                    forward: keys.f,
-                    reverse: keys.r
-                });
+                keys.f = verticalValue < -0.2;
+                keys.r = verticalValue > 0.2;
             } else {
                 keys.f = false;
                 keys.r = false;
             }
         }
         
-        // Add touch event listeners
-        document.addEventListener('touchstart', handleJoystickTouch, { passive: false });
-        document.addEventListener('touchmove', handleJoystickTouch, { passive: false });
-        document.addEventListener('touchend', handleJoystickTouch, { passive: false });
-        document.addEventListener('touchcancel', handleJoystickTouch, { passive: false });
+        // Only add touch listeners to the mobile controls container
+        document.getElementById('mobile-controls').addEventListener('touchstart', handleJoystickTouch, { passive: false });
+        document.getElementById('mobile-controls').addEventListener('touchmove', handleJoystickTouch, { passive: false });
+        document.getElementById('mobile-controls').addEventListener('touchend', handleJoystickTouch, { passive: false });
+        document.getElementById('mobile-controls').addEventListener('touchcancel', handleJoystickTouch, { passive: false });
         
         // Add view toggle button functionality
         document.getElementById('view-toggle-btn').addEventListener('touchstart', (e) => {
