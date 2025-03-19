@@ -20,17 +20,17 @@
             bottom: 0; 
             left: 0; 
             width: 100%; 
-            height: 40%; 
+            height: 45%; /* Increased from 40% for more space */
             z-index: 100; 
             display: none; 
         }
 
         .joystick-container { 
             position: absolute; 
-            width: 150px; /* Increased from 120px */
-            height: 150px; /* Increased from 120px */
+            width: 200px; /* Increased from 150px for better control */
+            height: 200px; /* Increased from 150px for better control */
             background-color: rgba(255, 255, 255, 0.15); 
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%; 
             display: flex;
             justify-content: center;
@@ -39,10 +39,10 @@
 
         .joystick-thumb { 
             position: absolute; 
-            width: 70px; /* Increased from 60px */
-            height: 70px; /* Increased from 60px */
+            width: 100px; /* Increased from 70px for better visibility */
+            height: 100px; /* Increased from 70px for better visibility */
             background-color: rgba(255, 255, 255, 0.4); 
-            border: 2px solid rgba(255, 255, 255, 0.6);
+            border: 3px solid rgba(255, 255, 255, 0.6);
             border-radius: 50%; 
             top: 50%; 
             left: 50%; 
@@ -53,10 +53,10 @@
         .joystick-container::before {
             content: '';
             position: absolute;
-            width: 40px;
-            height: 80px;
-            border-radius: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            width: 60px; /* Increased from 40px */
+            height: 120px; /* Increased from 80px */
+            border-radius: 30px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
         }
 
         /* Vertical movement indicator for left joystick */
@@ -70,40 +70,50 @@
         }
 
         #left-joystick { 
-            bottom: 50px; /* Increased distance from bottom */
-            left: 50px; /* Increased distance from left */
+            bottom: 80px; /* Increased from 50px for better spacing */
+            left: 80px; /* Increased from 50px for better spacing */
         }
 
         #right-joystick { 
-            bottom: 50px; /* Increased distance from bottom */
-            right: 50px; /* Increased distance from right */
+            bottom: 80px; /* Increased from 50px for better spacing */
+            right: 80px; /* Increased from 50px for better spacing */
         }
 
         /* Labels for joysticks */
         .joystick-label {
             position: absolute;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8); /* Increased opacity for better visibility */
+            font-size: 16px; /* Increased from 14px */
             text-align: center;
             width: 100%;
-            top: -25px;
+            top: -30px; /* Adjusted for new size */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8); /* Added for better readability */
         }
         
         #view-toggle-btn { position: absolute; top: 20px; right: 20px; width: 60px; height: 60px; background-color: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; }
         
         /* Media query to show mobile controls only on touch devices */
         @media (hover: none) and (pointer: coarse) {
-            #mobile-controls { display: block; }
-            #controls-info { display: none; }
+            #mobile-controls { 
+                display: block; 
+            }
+            #controls-info { 
+                display: none; 
+            }
+            #minimap-container {
+                bottom: 300px; /* Move radar way up on mobile to avoid joystick overlap */
+                width: 150px; /* Slightly smaller on mobile */
+                height: 150px;
+            }
         }
 
         /* Minimap styles */
         #minimap-container {
             position: fixed;
-            bottom: 20px;
+            bottom: 100px; /* Increased from 20px to move above Vibe Jam link */
             right: 20px;
-            width: 150px;
-            height: 150px;
+            width: 180px; /* Increased from 150px for better visibility */
+            height: 180px; /* Increased from 150px for better visibility */
             background-color: rgba(0, 40, 0, 0.7);
             border: 2px solid rgba(0, 255, 0, 0.3);
             border-radius: 50%;
@@ -113,6 +123,22 @@
         #minimap {
             width: 100%;
             height: 100%;
+        }
+
+        /* Ensure Vibe Jam link stays above other elements */
+        .vibe-jam-link {
+            position: fixed;
+            bottom: -1px;
+            right: -1px;
+            padding: 7px;
+            font-size: 14px;
+            font-weight: bold;
+            background: #fff;
+            color: #000;
+            text-decoration: none;
+            border-top-left-radius: 12px;
+            z-index: 10000;
+            border: 1px solid #fff;
         }
     </style>
 </head>
@@ -2072,6 +2098,6 @@
             }
         });
     </script>
-    <a target="_blank" href="https://jam.pieter.com" style="font-family: 'system-ui', sans-serif; position: fixed; bottom: -1px; right: -1px; padding: 7px; font-size: 14px; font-weight: bold; background: #fff; color: #000; text-decoration: none; z-index: 10; border-top-left-radius: 12px; z-index: 10000; border: 1px solid #fff;">🕹️ Vibe Jam 2025</a>
+    <a target="_blank" href="https://jam.pieter.com" class="vibe-jam-link">🕹️ Vibe Jam 2025</a>
 </body>
 </html>
