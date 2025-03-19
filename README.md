@@ -1,6 +1,4 @@
-# 🪼 JellyGame 🐟
-
-An immersive 3D underwater adventure game where you navigate through a mesmerizing ocean environment while avoiding dangerous jellyfish and reaching your goals.
+# 🪼 JellyGame: Dodge jellyfish, swim fast, and win!
 
 ## 🎮 Game Features
 
@@ -29,9 +27,8 @@ An immersive 3D underwater adventure game where you navigate through a mesmerizi
 
 - **Responsive Design**
   - Full support for both desktop and mobile devices
-  - Virtual joystick controls on touch devices
+  - Virtual joystick controls on touch devices (In Progress)
   - Responsive layout that adapts to screen size
-  - 2D fallback for browsers without WebGL support
 
 - **Visual Feedback**
   - Real-time minimap radar system
@@ -49,7 +46,7 @@ An immersive 3D underwater adventure game where you navigate through a mesmerizi
 - **V**: Toggle view mode (First/Third person)
 - **Space**: Continue/Restart (after completing level or game over)
 
-### Mobile Controls
+### Mobile Controls (In Progress)
 - **Left Joystick**: Control vertical movement (up/down)
 - **Right Joystick**: Control turning and forward/backward movement
 - **View Toggle Button**: Switch between first and third person views
@@ -58,7 +55,7 @@ An immersive 3D underwater adventure game where you navigate through a mesmerizi
 ## 🎨 Visual Features
 
 - Realistic fish model with dynamic body segments
-- Bioluminescent jellyfish with fluid tentacle animations
+- Bioluminescent jellyfish
 - Dynamic water surface with realistic reflections
 - Underwater particle effects (bubbles and debris)
 - Atmospheric light rays
@@ -82,10 +79,6 @@ An immersive 3D underwater adventure game where you navigate through a mesmerizi
 - Touch screen for mobile controls (optional)
 - Stable internet connection for asset loading
 
-## 🔧 Fallback Support
-
-The game includes a 2D fallback version for browsers that don't support WebGL, ensuring playability across different platforms and devices.
-
 ## 🎵 Performance Notes
 
 - The game automatically adjusts visual quality based on device capabilities
@@ -93,23 +86,9 @@ The game includes a 2D fallback version for browsers that don't support WebGL, e
 - Smooth animations with physics-based movement
 - Efficient particle system management
 
-## 🚀 Future Enhancements
-
-- Additional fish characters with unique abilities
-- More diverse ocean environments
-- Power-ups and special abilities
-- Multiplayer support
-- Custom level editor
-- Achievement system
-- Sound effects and background music
-
 ## 📱 Mobile Optimization
 
-- Touch-optimized controls
-- Responsive design for different screen sizes
-- Performance optimizations for mobile devices
-- Automatic quality adjustments
-- Battery-efficient rendering
+- In progress
 
 ---
 
