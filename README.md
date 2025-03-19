@@ -1,4 +1,4 @@
-# JellyGame 🐟
+# 🪼 JellyGame 🐟
 
 An immersive 3D underwater adventure game where you navigate through a mesmerizing ocean environment while avoiding dangerous jellyfish and reaching your goals.
 
