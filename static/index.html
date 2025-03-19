@@ -157,7 +157,7 @@
     <!-- Mobile controls -->
     <div id="mobile-controls">
         <div id="left-joystick" class="joystick-container">
-            <div class="joystick-label">UP / DOWN</div>
+            <div class="joystick-label">MOVE & TURN</div>
             <div class="joystick-thumb"></div>
         </div>
         <div id="right-joystick" class="joystick-container">
@@ -2021,26 +2021,25 @@
         }
         
         function updateGameControlsFromJoysticks() {
-            // Left joystick controls vertical movement (up/down)
+            // Left joystick controls vertical movement (up/down) and turning (left/right)
             if (joysticks.left.active) {
                 keys.ArrowUp = joysticks.left.verticalAxis < -0.3;
                 keys.ArrowDown = joysticks.left.verticalAxis > 0.3;
-                // Add turning based on horizontal movement for left joystick
                 keys.ArrowLeft = joysticks.left.horizontalAxis < -0.3;
                 keys.ArrowRight = joysticks.left.horizontalAxis > 0.3;
+            } else {
+                keys.ArrowUp = false;
+                keys.ArrowDown = false;
+                keys.ArrowLeft = false;
+                keys.ArrowRight = false;
             }
             
-            // Right joystick controls forward/backward movement
+            // Right joystick ONLY controls forward/backward movement
             if (joysticks.right.active) {
-                // Forward when pushing up, backward when pushing down
+                // Forward when pushing up (negative vertical axis)
+                // Backward when pushing down (positive vertical axis)
                 keys.f = joysticks.right.verticalAxis < -0.3;
                 keys.r = joysticks.right.verticalAxis > 0.3;
-                
-                // Add slight turning based on horizontal movement
-                if (Math.abs(joysticks.right.horizontalAxis) > 0.3) {
-                    keys.ArrowLeft = joysticks.right.horizontalAxis < -0.3;
-                    keys.ArrowRight = joysticks.right.horizontalAxis > 0.3;
-                }
             } else {
                 keys.f = false;
                 keys.r = false;
