@@ -18,18 +18,18 @@
         /* Virtual joystick styles */
         #mobile-controls { 
             position: fixed; 
-            bottom: 0; 
+            bottom: 80px; /* Increased to avoid radar overlap */
             left: 0; 
             width: 100%; 
-            height: 45%; /* Increased from 40% */
+            height: 45%; 
             z-index: 100; 
             display: none; 
         }
 
         .joystick-container { 
             position: absolute; 
-            width: 200px; /* Increased from 150px */
-            height: 200px; /* Increased from 150px */
+            width: 250px; /* Increased size */
+            height: 250px; /* Increased size */
             background-color: rgba(255, 255, 255, 0.15); 
             border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%; 
@@ -40,8 +40,8 @@
 
         .joystick-thumb { 
             position: absolute; 
-            width: 100px; /* Increased from 70px */
-            height: 100px; /* Increased from 70px */
+            width: 120px; /* Increased size */
+            height: 120px; /* Increased size */
             background-color: rgba(255, 255, 255, 0.4); 
             border: 2px solid rgba(255, 255, 255, 0.6);
             border-radius: 50%; 
@@ -54,9 +54,9 @@
         .joystick-container::before {
             content: '';
             position: absolute;
-            width: 40px;
-            height: 80px;
-            border-radius: 20px;
+            width: 50px; /* Increased size */
+            height: 100px; /* Increased size */
+            border-radius: 25px;
             border: 2px solid rgba(255, 255, 255, 0.3);
         }
 
@@ -71,23 +71,26 @@
         }
 
         #left-joystick { 
-            bottom: 80px; /* Increased distance from bottom */
-            left: 80px; /* Increased distance from left */
+            left: 50%;
+            transform: translateX(-280px); /* Center from middle of screen */
+            bottom: 40px;
         }
 
         #right-joystick { 
-            bottom: 80px; /* Increased distance from bottom */
-            right: 80px; /* Increased distance from right */
+            right: 50%;
+            transform: translateX(280px); /* Center from middle of screen */
+            bottom: 40px;
         }
 
         /* Labels for joysticks */
         .joystick-label {
             position: absolute;
             color: rgba(255, 255, 255, 0.7);
-            font-size: 14px;
+            font-size: 16px; /* Increased size */
             text-align: center;
             width: 100%;
-            top: -25px;
+            top: -30px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
         }
         
         #view-toggle-btn { position: absolute; top: 20px; right: 20px; width: 60px; height: 60px; background-color: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; }
@@ -1955,7 +1958,7 @@
         function updateJoystickPosition(joystickId) {
             const joystick = joysticks[joystickId];
             
-            // Calculate distance from center relative to the joystick container
+            // Calculate distance from center
             const deltaX = joystick.currentX - joystick.centerX;
             const deltaY = joystick.currentY - joystick.centerY;
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -1972,10 +1975,15 @@
             const scale = actualDistance / distance;
             
             // Calculate normalized position
-            const normalizedX = deltaX * scale;
-            const normalizedY = deltaY * scale;
+            let normalizedX = deltaX * scale;
+            let normalizedY = deltaY * scale;
             
-            // Update thumb position relative to center
+            // For right joystick, restrict to vertical movement only
+            if (joystickId === 'right') {
+                normalizedX = 0;
+            }
+            
+            // Update thumb position
             joystick.thumb.style.transform = `translate(calc(-50% + ${normalizedX}px), calc(-50% + ${normalizedY}px))`;
             
             // Update axis values (-1 to 1)
@@ -2010,11 +2018,13 @@
                 keys.ArrowRight = false;
             }
             
-            // Right joystick controls forward/backward movement
+            // Right joystick only controls forward/backward movement
             if (joysticks.right.active) {
                 const verticalValue = joysticks.right.verticalAxis;
-                keys.f = verticalValue < -0.2;
-                keys.r = verticalValue > 0.2;
+                keys.f = verticalValue < -0.3;
+                keys.r = verticalValue > 0.3;
+                // Ignore horizontal movement for right joystick
+                joysticks.right.horizontalAxis = 0;
             } else {
                 keys.f = false;
                 keys.r = false;
