@@ -20,15 +20,15 @@
             bottom: 0; 
             left: 0; 
             width: 100%; 
-            height: 40%; 
+            height: 45%; /* Increased from 40% */
             z-index: 100; 
             display: none; 
         }
 
         .joystick-container { 
             position: absolute; 
-            width: 150px; /* Increased from 120px */
-            height: 150px; /* Increased from 120px */
+            width: 200px; /* Increased from 150px */
+            height: 200px; /* Increased from 150px */
             background-color: rgba(255, 255, 255, 0.15); 
             border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%; 
@@ -39,8 +39,8 @@
 
         .joystick-thumb { 
             position: absolute; 
-            width: 70px; /* Increased from 60px */
-            height: 70px; /* Increased from 60px */
+            width: 100px; /* Increased from 70px */
+            height: 100px; /* Increased from 70px */
             background-color: rgba(255, 255, 255, 0.4); 
             border: 2px solid rgba(255, 255, 255, 0.6);
             border-radius: 50%; 
@@ -70,13 +70,13 @@
         }
 
         #left-joystick { 
-            bottom: 50px; /* Increased distance from bottom */
-            left: 50px; /* Increased distance from left */
+            bottom: 80px; /* Increased distance from bottom */
+            left: 80px; /* Increased distance from left */
         }
 
         #right-joystick { 
-            bottom: 50px; /* Increased distance from bottom */
-            right: 50px; /* Increased distance from right */
+            bottom: 80px; /* Increased distance from bottom */
+            right: 80px; /* Increased distance from right */
         }
 
         /* Labels for joysticks */
@@ -2025,9 +2025,9 @@
             if (joysticks.left.active) {
                 keys.ArrowUp = joysticks.left.verticalAxis < -0.3;
                 keys.ArrowDown = joysticks.left.verticalAxis > 0.3;
-                // Clear horizontal movement for left joystick
-                keys.ArrowLeft = false;
-                keys.ArrowRight = false;
+                // Add turning based on horizontal movement for left joystick
+                keys.ArrowLeft = joysticks.left.horizontalAxis < -0.3;
+                keys.ArrowRight = joysticks.left.horizontalAxis > 0.3;
             }
             
             // Right joystick controls forward/backward movement
@@ -2035,14 +2035,15 @@
                 // Forward when pushing up, backward when pushing down
                 keys.f = joysticks.right.verticalAxis < -0.3;
                 keys.r = joysticks.right.verticalAxis > 0.3;
+                
                 // Add slight turning based on horizontal movement
-                keys.ArrowLeft = joysticks.right.horizontalAxis < -0.5;
-                keys.ArrowRight = joysticks.right.horizontalAxis > 0.5;
+                if (Math.abs(joysticks.right.horizontalAxis) > 0.3) {
+                    keys.ArrowLeft = joysticks.right.horizontalAxis < -0.3;
+                    keys.ArrowRight = joysticks.right.horizontalAxis > 0.3;
+                }
             } else {
                 keys.f = false;
                 keys.r = false;
-                keys.ArrowLeft = false;
-                keys.ArrowRight = false;
             }
         }
         
