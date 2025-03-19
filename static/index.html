@@ -1984,6 +1984,12 @@
             const deltaY = joystick.currentY - joystick.centerY;
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
             
+            if (distance === 0) {
+                joystick.horizontalAxis = 0;
+                joystick.verticalAxis = 0;
+                return;
+            }
+            
             // Normalize to get direction
             let normalizedX = deltaX / distance;
             let normalizedY = deltaY / distance;
@@ -2000,12 +2006,25 @@
             joystick.thumb.style.top = newY + 'px';
             
             // Update axis values (-1 to 1)
-            joystick.horizontalAxis = deltaX / joystick.maxDistance;
-            joystick.verticalAxis = deltaY / joystick.maxDistance;
+            // For more precise control, use the actual distance ratio
+            const distanceRatio = actualDistance / joystick.maxDistance;
+            joystick.horizontalAxis = (deltaX / distance) * distanceRatio;
+            joystick.verticalAxis = (deltaY / distance) * distanceRatio;
             
             // Clamp values
             joystick.horizontalAxis = Math.max(-1, Math.min(1, joystick.horizontalAxis));
             joystick.verticalAxis = Math.max(-1, Math.min(1, joystick.verticalAxis));
+            
+            // Debug output for right joystick
+            if (joystickId === 'right') {
+                console.log('Right joystick position:', {
+                    deltaY,
+                    distance,
+                    actualDistance,
+                    distanceRatio,
+                    verticalAxis: joystick.verticalAxis
+                });
+            }
         }
         
         function resetJoystick(joystickId) {
@@ -2035,11 +2054,21 @@
             }
             
             // Right joystick ONLY controls forward/backward movement
+            // Use a more lenient threshold and ignore horizontal movement completely
             if (joysticks.right.active) {
                 // Forward when pushing up (negative vertical axis)
                 // Backward when pushing down (positive vertical axis)
-                keys.f = joysticks.right.verticalAxis < -0.3;
-                keys.r = joysticks.right.verticalAxis > 0.3;
+                const verticalValue = joysticks.right.verticalAxis;
+                keys.f = verticalValue < -0.2; // More lenient threshold
+                keys.r = verticalValue > 0.2;  // More lenient threshold
+                
+                // Debug output to help diagnose issues
+                console.log('Right joystick:', {
+                    active: joysticks.right.active,
+                    verticalAxis: verticalValue,
+                    forward: keys.f,
+                    reverse: keys.r
+                });
             } else {
                 keys.f = false;
                 keys.r = false;
