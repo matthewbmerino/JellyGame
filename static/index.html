@@ -1980,7 +1980,7 @@
             
             // For right joystick, restrict to vertical movement only
             if (joystickId === 'right') {
-                normalizedX = 0;
+                normalizedX = 0; // Force horizontal axis to 0 for right joystick
             }
             
             // Update thumb position
@@ -1993,6 +1993,11 @@
             // Clamp values
             joystick.horizontalAxis = Math.max(-1, Math.min(1, joystick.horizontalAxis));
             joystick.verticalAxis = Math.max(-1, Math.min(1, joystick.verticalAxis));
+            
+            // Additional safeguard: force horizontal axis to 0 for right joystick
+            if (joystickId === 'right') {
+                joystick.horizontalAxis = 0;
+            }
         }
         
         function resetJoystick(joystickId) {
@@ -2018,14 +2023,15 @@
                 keys.ArrowRight = false;
             }
             
-            // Right joystick only controls forward/backward movement
+            // Right joystick ONLY controls forward/backward movement, nothing else
             if (joysticks.right.active) {
                 const verticalValue = joysticks.right.verticalAxis;
                 // Forward when pushing up (negative Y value), backward when pushing down (positive Y value)
                 keys.f = verticalValue < -0.3;
                 keys.r = verticalValue > 0.3;
-                // For debugging
-                console.log("Right joystick Y axis:", verticalValue, "Forward:", keys.f, "Backward:", keys.r);
+                
+                // Make sure horizontal input on right joystick doesn't affect anything
+                joysticks.right.horizontalAxis = 0;
             } else {
                 keys.f = false;
                 keys.r = false;
