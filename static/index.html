@@ -2021,13 +2021,56 @@
             // Right joystick only controls forward/backward movement
             if (joysticks.right.active) {
                 const verticalValue = joysticks.right.verticalAxis;
+                // Forward when pushing up (negative Y value), backward when pushing down (positive Y value)
                 keys.f = verticalValue < -0.3;
                 keys.r = verticalValue > 0.3;
-                // Ignore horizontal movement for right joystick
-                joysticks.right.horizontalAxis = 0;
+                // For debugging
+                console.log("Right joystick Y axis:", verticalValue, "Forward:", keys.f, "Backward:", keys.r);
             } else {
                 keys.f = false;
                 keys.r = false;
+            }
+        }
+        
+        // Initialize joystick positions
+        function initJoystickPositions() {
+            ['left', 'right'].forEach(side => {
+                const joystick = joysticks[side];
+                const rect = joystick.container.getBoundingClientRect();
+                joystick.centerX = rect.width / 2;
+                joystick.centerY = rect.height / 2;
+                joystick.maxDistance = Math.min(rect.width, rect.height) * 0.4; // Increased for better control
+            });
+            
+            // Update joystick labels to be more descriptive
+            document.querySelector('#left-joystick .joystick-label').innerHTML = 'MOVE UP/DOWN<br>TURN LEFT/RIGHT';
+            document.querySelector('#right-joystick .joystick-label').innerHTML = 'PUSH UP: FORWARD<br>PUSH DOWN: BACKWARD';
+            
+            // Add debug for mobile development
+            if (window.location.search.includes('debug=1')) {
+                const debugDiv = document.createElement('div');
+                debugDiv.id = 'joystick-debug';
+                debugDiv.style.position = 'fixed';
+                debugDiv.style.top = '100px';
+                debugDiv.style.left = '10px';
+                debugDiv.style.background = 'rgba(0,0,0,0.7)';
+                debugDiv.style.color = 'white';
+                debugDiv.style.padding = '10px';
+                debugDiv.style.borderRadius = '5px';
+                debugDiv.style.zIndex = '10000';
+                document.body.appendChild(debugDiv);
+                
+                // Update debug info every 100ms
+                setInterval(() => {
+                    if (document.getElementById('joystick-debug')) {
+                        document.getElementById('joystick-debug').innerHTML = `
+                            Left: V=${joysticks.left.verticalAxis.toFixed(2)} H=${joysticks.left.horizontalAxis.toFixed(2)}<br>
+                            Right: V=${joysticks.right.verticalAxis.toFixed(2)}<br>
+                            Keys: Up=${keys.ArrowUp} Down=${keys.ArrowDown} Left=${keys.ArrowLeft} Right=${keys.ArrowRight}<br>
+                            Forward=${keys.f} Backward=${keys.r}
+                        `;
+                    }
+                }, 100);
             }
         }
         
