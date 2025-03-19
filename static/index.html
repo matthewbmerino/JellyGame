@@ -15,11 +15,80 @@
         #game-message { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; background: rgba(0,0,0,0.7); border-radius: 10px; text-align: center; display: none; }
         
         /* Virtual joystick styles */
-        #mobile-controls { position: fixed; bottom: 0; left: 0; width: 100%; height: 40%; z-index: 100; display: none; }
-        .joystick-container { position: absolute; width: 120px; height: 120px; background-color: rgba(255, 255, 255, 0.1); border-radius: 50%; }
-        .joystick-thumb { position: absolute; width: 60px; height: 60px; background-color: rgba(255, 255, 255, 0.3); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-        #left-joystick { bottom: 30px; left: 30px; }
-        #right-joystick { bottom: 30px; right: 30px; }
+        #mobile-controls { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 40%; 
+            z-index: 100; 
+            display: none; 
+        }
+
+        .joystick-container { 
+            position: absolute; 
+            width: 150px; /* Increased from 120px */
+            height: 150px; /* Increased from 120px */
+            background-color: rgba(255, 255, 255, 0.15); 
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .joystick-thumb { 
+            position: absolute; 
+            width: 70px; /* Increased from 60px */
+            height: 70px; /* Increased from 60px */
+            background-color: rgba(255, 255, 255, 0.4); 
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+        }
+
+        /* Joystick indicators */
+        .joystick-container::before {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 80px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Vertical movement indicator for left joystick */
+        #left-joystick::before {
+            transform: rotate(90deg);
+        }
+
+        /* Forward/backward indicator for right joystick */
+        #right-joystick::before {
+            transform: rotate(0deg);
+        }
+
+        #left-joystick { 
+            bottom: 50px; /* Increased distance from bottom */
+            left: 50px; /* Increased distance from left */
+        }
+
+        #right-joystick { 
+            bottom: 50px; /* Increased distance from bottom */
+            right: 50px; /* Increased distance from right */
+        }
+
+        /* Labels for joysticks */
+        .joystick-label {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            text-align: center;
+            width: 100%;
+            top: -25px;
+        }
+        
         #view-toggle-btn { position: absolute; top: 20px; right: 20px; width: 60px; height: 60px; background-color: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; }
         
         /* Media query to show mobile controls only on touch devices */
@@ -88,9 +157,11 @@
     <!-- Mobile controls -->
     <div id="mobile-controls">
         <div id="left-joystick" class="joystick-container">
+            <div class="joystick-label">UP / DOWN</div>
             <div class="joystick-thumb"></div>
         </div>
         <div id="right-joystick" class="joystick-container">
+            <div class="joystick-label">FORWARD / BACK</div>
             <div class="joystick-thumb"></div>
         </div>
         <div id="view-toggle-btn">V</div>
@@ -1950,26 +2021,28 @@
         }
         
         function updateGameControlsFromJoysticks() {
-            // Left joystick controls movement (up/down)
+            // Left joystick controls vertical movement (up/down)
             if (joysticks.left.active) {
                 keys.ArrowUp = joysticks.left.verticalAxis < -0.3;
                 keys.ArrowDown = joysticks.left.verticalAxis > 0.3;
-            } else {
-                keys.ArrowUp = false;
-                keys.ArrowDown = false;
-            }
-            
-            // Right joystick controls turning (left/right) and forward/backward
-            if (joysticks.right.active) {
-                keys.ArrowLeft = joysticks.right.horizontalAxis < -0.3;
-                keys.ArrowRight = joysticks.right.horizontalAxis > 0.3;
-                keys.f = joysticks.right.verticalAxis < -0.3; // Forward when pushing up
-                keys.r = joysticks.right.verticalAxis > 0.3;  // Backward when pushing down
-            } else {
+                // Clear horizontal movement for left joystick
                 keys.ArrowLeft = false;
                 keys.ArrowRight = false;
+            }
+            
+            // Right joystick controls forward/backward movement
+            if (joysticks.right.active) {
+                // Forward when pushing up, backward when pushing down
+                keys.f = joysticks.right.verticalAxis < -0.3;
+                keys.r = joysticks.right.verticalAxis > 0.3;
+                // Add slight turning based on horizontal movement
+                keys.ArrowLeft = joysticks.right.horizontalAxis < -0.5;
+                keys.ArrowRight = joysticks.right.horizontalAxis > 0.5;
+            } else {
                 keys.f = false;
                 keys.r = false;
+                keys.ArrowLeft = false;
+                keys.ArrowRight = false;
             }
         }
         
