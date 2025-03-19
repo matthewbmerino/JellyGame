@@ -1,65 +1,116 @@
-# JellyGame
+# JellyGame 🐟
 
-A multiplayer underwater adventure game where you navigate through jellyfish-filled waters to reach your goal. Created for the 2025 Vibe Coding Game Jam.
+An immersive 3D underwater adventure game where you navigate through a mesmerizing ocean environment while avoiding dangerous jellyfish and reaching your goals.
 
-## Features
+## 🎮 Game Features
 
-- Real-time multiplayer gameplay
-- Beautiful underwater 3D environment
-- Mobile-friendly controls
-- Radar-style minimap
-- Global leaderboard
-- Progressive difficulty levels
-- Smooth animations and effects
-- WebGL with fallback 2D mode
+- **Immersive 3D Environment**
+  - Beautiful underwater scenery with dynamic lighting
+  - Realistic water surface effects
+  - Ambient particles and light rays
+  - Dynamic ocean floor
 
-## Quick Start
+- **Advanced Fish Controls**
+  - Fluid swimming mechanics with momentum
+  - Realistic fish animation with body segments
+  - Natural undulating motion
+  - Dynamic fin movements
 
-1. Install dependencies:
-```bash
-npm install
-```
+- **Multiple View Modes**
+  - Third-person view for better spatial awareness
+  - First-person view for immersive experience
+  - Toggle between views with 'V' key
 
-2. Start the server:
-```bash
-npm start
-```
+- **Challenging Gameplay**
+  - Navigate through fields of dangerous jellyfish
+  - Progress through increasingly difficult levels
+  - Score points by reaching goals
+  - Adaptive difficulty system
 
-3. Open `http://localhost:3000` in your browser
+- **Responsive Design**
+  - Full support for both desktop and mobile devices
+  - Virtual joystick controls on touch devices
+  - Responsive layout that adapts to screen size
+  - 2D fallback for browsers without WebGL support
 
-## Deployment
+- **Visual Feedback**
+  - Real-time minimap radar system
+  - Score and level tracking
+  - Visual effects for movement and collisions
+  - Clear game state messages
 
-The game can be easily deployed to platforms like Vercel, Heroku, or Railway with zero configuration. Just connect your repository and deploy.
+## 🎯 How to Play
 
-For manual deployment:
-1. Clone the repository
-2. Install dependencies with `npm install`
-3. Set environment variables if needed (PORT)
-4. Run `npm start`
-5. Configure your web server to proxy requests to the Node.js application
+### Desktop Controls
+- **Arrow Up/Down**: Move up/down
+- **Arrow Left/Right**: Turn left/right
+- **F**: Move forward
+- **R**: Move backward
+- **V**: Toggle view mode (First/Third person)
+- **Space**: Continue/Restart (after completing level or game over)
 
-## Controls
+### Mobile Controls
+- **Left Joystick**: Control vertical movement (up/down)
+- **Right Joystick**: Control turning and forward/backward movement
+- **View Toggle Button**: Switch between first and third person views
+- **Tap Messages**: Continue/Restart game
 
-- Arrow Up/Down: Move up/down
-- Arrow Left/Right: Turn left/right
-- F: Move forward
-- R: Move backward
-- V: Toggle view (First/Third person)
-- Mobile: Use on-screen joysticks
+## 🎨 Visual Features
 
-## Technical Details
+- Realistic fish model with dynamic body segments
+- Bioluminescent jellyfish with fluid tentacle animations
+- Dynamic water surface with realistic reflections
+- Underwater particle effects (bubbles and debris)
+- Atmospheric light rays
+- Dynamic minimap with radar sweep effect
 
-- Built with Three.js for 3D graphics
-- Socket.IO for real-time multiplayer
-- Express.js backend
-- Responsive design for all devices
-- WebGL with automatic fallback to 2D canvas
-- Optimized for performance with minimal loading time
+## 🏆 Game Progression
 
-## Credits
+1. Start at level 1 with basic jellyfish patterns
+2. Each level increases difficulty by:
+   - Adding more jellyfish
+   - Making jellyfish faster
+   - Placing goals in more challenging locations
+   - Reducing goal size
+3. Complete all 5 levels to win the game
+4. Score points based on level completion
 
-Created by [Your Name] with assistance from AI (Claude). All code and assets are generated or created specifically for this game jam.
+## 💻 Technical Requirements
 
-## License
+- Modern web browser with WebGL support
+- Recommended browsers: Chrome, Firefox, Safari, Edge
+- Touch screen for mobile controls (optional)
+- Stable internet connection for asset loading
 
-MIT License 
+## 🔧 Fallback Support
+
+The game includes a 2D fallback version for browsers that don't support WebGL, ensuring playability across different platforms and devices.
+
+## 🎵 Performance Notes
+
+- The game automatically adjusts visual quality based on device capabilities
+- Optimized for both desktop and mobile performance
+- Smooth animations with physics-based movement
+- Efficient particle system management
+
+## 🚀 Future Enhancements
+
+- Additional fish characters with unique abilities
+- More diverse ocean environments
+- Power-ups and special abilities
+- Multiplayer support
+- Custom level editor
+- Achievement system
+- Sound effects and background music
+
+## 📱 Mobile Optimization
+
+- Touch-optimized controls
+- Responsive design for different screen sizes
+- Performance optimizations for mobile devices
+- Automatic quality adjustments
+- Battery-efficient rendering
+
+---
+
+Enjoy your underwater adventure! 🌊✨ 
