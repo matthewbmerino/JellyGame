@@ -2037,10 +2037,9 @@
             if (joysticks.right.active) {
                 const verticalValue = joysticks.right.verticalAxis;
                 
-                // Use a lower threshold and improved sensitivity for smoother control
                 // Forward when pushing up (negative Y value), backward when pushing down (positive Y value)
-                keys.f = verticalValue < -0.2; // More sensitive threshold
-                keys.r = verticalValue > 0.2; // More sensitive threshold
+                keys.f = verticalValue < -0.15; // More sensitive threshold for forward
+                keys.r = verticalValue > 0.15; // More sensitive threshold for reverse
                 
                 // Make sure horizontal input on right joystick doesn't affect anything
                 joysticks.right.horizontalAxis = 0;
@@ -2082,7 +2081,7 @@
             
             // Make right joystick's purpose clearer with improved label
             document.querySelector('#left-joystick .joystick-label').innerHTML = 'MOVE UP/DOWN<br>TURN LEFT/RIGHT';
-            document.querySelector('#right-joystick .joystick-label').innerHTML = '⬆️ SWIM FORWARD<br>⬇️ SWIM BACKWARD';
+            document.querySelector('#right-joystick .joystick-label').innerHTML = '⬆️ FORWARD (F)<br>⬇️ REVERSE (R)';
             
             // Add debug for mobile development
             if (window.location.search.includes('debug=1')) {
