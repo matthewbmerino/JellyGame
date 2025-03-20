@@ -163,6 +163,20 @@
         #mobile-warning button:hover {
             background-color: #3a7fd5;
         }
+        
+        #debug-overlay {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -222,6 +236,9 @@
         </div>
         <div id="view-toggle-btn">V</div>
     </div>
+
+    <!-- Debug overlay for tracking control state -->
+    <div id="debug-overlay"></div>
 
     <!-- Include Three.js and required libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -1135,9 +1152,17 @@
                 // Forward/backward movement
                 if (keys.f) {
                     acceleration.add(fish.direction.clone().multiplyScalar(accelerationRate));
+                    // Debug information
+                    if (Math.random() < 0.01) { // Only log occasionally to avoid console spam
+                        console.log("Moving FORWARD", keys.f, fish.direction);
+                    }
                 }
                 if (keys.r) {
                     acceleration.add(fish.direction.clone().multiplyScalar(-accelerationRate * 0.5));
+                    // Debug information
+                    if (Math.random() < 0.01) { // Only log occasionally to avoid console spam
+                        console.log("Moving BACKWARD", keys.r, fish.direction);
+                    }
                 }
                 
                 // Up/down movement with momentum - reduced strength
@@ -1892,6 +1917,8 @@
                 ArrowDown: false,
                 ArrowLeft: false,
                 ArrowRight: false,
+                f: false,          // Forward
+                r: false,          // Reverse
                 ' ': false,
                 v: false // For toggling view mode
             };
@@ -1977,168 +2004,14 @@
                 const rect = joystick.container.getBoundingClientRect();
                 joystick.centerX = rect.width / 2;
                 joystick.centerY = rect.height / 2;
-            });
-        }
-        
-        // Handle joystick touch events
-        function handleJoystickTouch(e) {
-            e.preventDefault();
-            
-            // Handle touch end/cancel
-            if (e.type === 'touchend' || e.type === 'touchcancel') {
-                // Find touches that were removed
-                const activeTouches = Array.from(e.touches);
-                ['left', 'right'].forEach(side => {
-                    const joystick = joysticks[side];
-                    if (joystick.touchId !== null && !activeTouches.find(touch => touch.identifier === joystick.touchId)) {
-                        resetJoystick(side);
-                    }
-                });
-                return;
-            }
-
-            // Flag to track if any touch is within a joystick
-            let touchHandled = false;
-
-            // Handle each touch
-            Array.from(e.touches).forEach(touch => {
-                const touchX = touch.clientX;
-                const touchY = touch.clientY;
-
-                ['left', 'right'].forEach(side => {
-                    const joystick = joysticks[side];
-                    const rect = joystick.container.getBoundingClientRect();
-
-                    // Check if this touch is within this joystick's bounds
-                    if (touchX >= rect.left && touchX <= rect.right && 
-                        touchY >= rect.top && touchY <= rect.bottom) {
-                        
-                        touchHandled = true; // This touch is within a joystick area
-                        
-                        // If this joystick isn't active or this is the touch controlling it
-                        if (!joystick.active || joystick.touchId === touch.identifier) {
-                            joystick.active = true;
-                            joystick.touchId = touch.identifier;
-                            
-                            // Calculate position relative to joystick container
-                            joystick.currentX = touchX - rect.left;
-                            joystick.currentY = touchY - rect.top;
-                            updateJoystickPosition(side);
-                        }
-                    }
-                });
-            });
-
-            // Only update game controls if at least one touch was handled
-            if (touchHandled) {
-                updateGameControlsFromJoysticks();
-            }
-        }
-        
-        function updateJoystickPosition(joystickId) {
-            const joystick = joysticks[joystickId];
-            
-            // Calculate distance from center
-            const deltaX = joystick.currentX - joystick.centerX;
-            const deltaY = joystick.currentY - joystick.centerY;
-            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            
-            if (distance === 0) {
+                
+                // Reset joystick values
+                joystick.active = false; 
+                joystick.touchId = null;
                 joystick.horizontalAxis = 0;
                 joystick.verticalAxis = 0;
                 joystick.thumb.style.transform = 'translate(-50%, -50%)';
-                return;
-            }
-            
-            // Limit distance to max radius
-            const actualDistance = Math.min(distance, joystick.maxDistance);
-            const scale = actualDistance / distance;
-            
-            // Calculate normalized position
-            let normalizedX = deltaX * scale;
-            let normalizedY = deltaY * scale;
-            
-            // For right joystick, only use vertical movement
-            if (joystickId === 'right') {
-                // Allow vertical movement but restrict horizontal
-                joystick.thumb.style.transform = `translate(-50%, calc(-50% + ${normalizedY}px))`;
-                joystick.horizontalAxis = 0;
-            } else {
-                // Regular thumb position update for left joystick
-                joystick.thumb.style.transform = `translate(calc(-50% + ${normalizedX}px), calc(-50% + ${normalizedY}px))`;
-                joystick.horizontalAxis = normalizedX / joystick.maxDistance;
-            }
-            
-            // Update vertical axis value (-1 to 1)
-            joystick.verticalAxis = normalizedY / joystick.maxDistance;
-            
-            // Clamp values
-            joystick.verticalAxis = Math.max(-1, Math.min(1, joystick.verticalAxis));
-            if (joystickId === 'left') {
-                joystick.horizontalAxis = Math.max(-1, Math.min(1, joystick.horizontalAxis));
-            }
-        }
-        
-        function resetJoystick(joystickId) {
-            const joystick = joysticks[joystickId];
-            joystick.active = false;
-            joystick.touchId = null;
-            joystick.horizontalAxis = 0;
-            joystick.verticalAxis = 0;
-            joystick.thumb.style.transform = 'translate(-50%, -50%)';
-        }
-        
-        function updateGameControlsFromJoysticks() {
-            // Left joystick controls vertical movement (up/down) and turning (left/right)
-            if (joysticks.left.active) {
-                keys.ArrowUp = joysticks.left.verticalAxis < -0.3;
-                keys.ArrowDown = joysticks.left.verticalAxis > 0.3;
-                keys.ArrowLeft = joysticks.left.horizontalAxis < -0.3;
-                keys.ArrowRight = joysticks.left.horizontalAxis > 0.3;
-            } else {
-                keys.ArrowUp = false;
-                keys.ArrowDown = false;
-                keys.ArrowLeft = false;
-                keys.ArrowRight = false;
-            }
-            
-            // Right joystick controls forward/backward movement
-            if (joysticks.right.active) {
-                const verticalValue = joysticks.right.verticalAxis;
-                
-                // Forward when pushing up (negative Y value), backward when pushing down (positive Y value)
-                keys.f = verticalValue < -0.15; // Forward
-                keys.r = verticalValue > 0.15;  // Reverse
-                
-                // Clear any left/right movement from right joystick
-                if (joysticks.right.horizontalAxis !== 0) {
-                    joysticks.right.horizontalAxis = 0;
-                }
-                
-                // Visual feedback for forward/backward movement
-                if (keys.f) {
-                    joysticks.right.thumb.style.backgroundColor = 'rgba(0, 255, 128, 0.6)'; // Green for forward
-                } else if (keys.r) {
-                    joysticks.right.thumb.style.backgroundColor = 'rgba(255, 128, 0, 0.6)'; // Orange for backward
-                } else {
-                    joysticks.right.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)'; // Default color
-                }
-            } else {
-                keys.f = false;
-                keys.r = false;
-                if (joysticks.right.thumb) {
-                    joysticks.right.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
-                }
-            }
-        }
-        
-        // Initialize joystick positions with improved sensitivity
-        function initJoystickPositions() {
-            ['left', 'right'].forEach(side => {
-                const joystick = joysticks[side];
-                const rect = joystick.container.getBoundingClientRect();
-                joystick.centerX = rect.width / 2;
-                joystick.centerY = rect.height / 2;
+                joystick.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
                 
                 // Increase max distance for better control range
                 joystick.maxDistance = Math.min(rect.width, rect.height) * 0.45;
@@ -2150,34 +2023,15 @@
             });
             
             // Make right joystick's purpose clearer with improved label
-            document.querySelector('#left-joystick .joystick-label').innerHTML = 'MOVE UP/DOWN<br>TURN LEFT/RIGHT';
-            document.querySelector('#right-joystick .joystick-label').innerHTML = '⬆️ FORWARD (F)<br>⬇️ REVERSE (R)';
+            const leftLabel = document.querySelector('#left-joystick .joystick-label');
+            const rightLabel = document.querySelector('#right-joystick .joystick-label');
             
-            // Add debug for mobile development
-            if (window.location.search.includes('debug=1')) {
-                const debugDiv = document.createElement('div');
-                debugDiv.id = 'joystick-debug';
-                debugDiv.style.position = 'fixed';
-                debugDiv.style.top = '100px';
-                debugDiv.style.left = '10px';
-                debugDiv.style.background = 'rgba(0,0,0,0.7)';
-                debugDiv.style.color = 'white';
-                debugDiv.style.padding = '10px';
-                debugDiv.style.borderRadius = '5px';
-                debugDiv.style.zIndex = '10000';
-                document.body.appendChild(debugDiv);
-                
-                // Update debug info every 100ms
-                setInterval(() => {
-                    if (document.getElementById('joystick-debug')) {
-                        document.getElementById('joystick-debug').innerHTML = `
-                            Left: V=${joysticks.left.verticalAxis.toFixed(2)} H=${joysticks.left.horizontalAxis.toFixed(2)}<br>
-                            Right: V=${joysticks.right.verticalAxis.toFixed(2)}<br>
-                            Keys: Up=${keys.ArrowUp} Down=${keys.ArrowDown} Left=${keys.ArrowLeft} Right=${keys.ArrowRight}<br>
-                            Forward=${keys.f} Backward=${keys.r}
-                        `;
-                    }
-                }, 100);
+            if (leftLabel) leftLabel.innerHTML = 'MOVE UP/DOWN<br>TURN LEFT/RIGHT';
+            if (rightLabel) rightLabel.innerHTML = '⬆️ FORWARD (F)<br>⬇️ REVERSE (R)';
+            
+            // Update debug overlay if available
+            if (typeof updateDebugOverlay === 'function') {
+                updateDebugOverlay();
             }
         }
         
@@ -2206,6 +2060,158 @@
                 nextLevel();
             }
         });
+        
+        // Handle joystick touch events
+        function handleJoystickTouch(e) {
+            e.preventDefault();
+            
+            // Handle touch end/cancel
+            if (e.type === 'touchend' || e.type === 'touchcancel') {
+                // Find touches that were removed
+                const activeTouches = Array.from(e.touches);
+                ['left', 'right'].forEach(side => {
+                    const joystick = joysticks[side];
+                    if (joystick.touchId !== null && !activeTouches.find(touch => touch.identifier === joystick.touchId)) {
+                        resetJoystick(side);
+                    }
+                });
+                return;
+            }
+            
+            // Flag to track if any touch is within a joystick
+            let touchHandled = false;
+            
+            // Handle each touch
+            Array.from(e.touches).forEach(touch => {
+                const touchX = touch.clientX;
+                const touchY = touch.clientY;
+                
+                ['left', 'right'].forEach(side => {
+                    const joystick = joysticks[side];
+                    const rect = joystick.container.getBoundingClientRect();
+                    
+                    // Check if this touch is within this joystick's bounds
+                    if (touchX >= rect.left && touchX <= rect.right && 
+                        touchY >= rect.top && touchY <= rect.bottom) {
+                        
+                        touchHandled = true; // This touch is within a joystick area
+                        
+                        // If this joystick isn't active or this is the touch controlling it
+                        if (!joystick.active || joystick.touchId === touch.identifier) {
+                            joystick.active = true;
+                            joystick.touchId = touch.identifier;
+                            
+                            // Calculate position relative to joystick container
+                            joystick.currentX = touchX - rect.left;
+                            joystick.currentY = touchY - rect.top;
+                            updateJoystickPosition(side);
+                        }
+                    }
+                });
+            });
+            
+            // Update game controls based on joystick positions
+            if (touchHandled) {
+                updateGameControlsFromJoysticks();
+            }
+        }
+        
+        function updateJoystickPosition(joystickId) {
+            const joystick = joysticks[joystickId];
+            
+            // Calculate distance from center
+            const deltaX = joystick.currentX - joystick.centerX;
+            const deltaY = joystick.currentY - joystick.centerY;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            if (distance === 0) {
+                joystick.horizontalAxis = 0;
+                joystick.verticalAxis = 0;
+                joystick.thumb.style.transform = 'translate(-50%, -50%)';
+                return;
+            }
+            
+            // Limit distance to max radius
+            const actualDistance = Math.min(distance, joystick.maxDistance);
+            const scale = actualDistance / distance;
+            
+            // Calculate normalized position
+            let normalizedX = deltaX * scale;
+            let normalizedY = deltaY * scale;
+            
+            if (joystickId === 'right') {
+                // RIGHT JOYSTICK: FORWARD/BACKWARD ONLY
+                
+                // Move thumb only in vertical direction
+                joystick.thumb.style.transform = `translate(-50%, calc(-50% + ${normalizedY}px))`;
+                
+                // Use only vertical component for controls, ensure horizontal is 0
+                joystick.horizontalAxis = 0;
+                
+                // Calculate vertical axis (-1 to 1), negate for intuitive controls
+                // (Up = forward = positive, Down = backward = negative)
+                joystick.verticalAxis = -normalizedY / joystick.maxDistance;
+            } else {
+                // LEFT JOYSTICK: DIRECTIONAL MOVEMENT
+                
+                // Move thumb in both directions
+                joystick.thumb.style.transform = `translate(calc(-50% + ${normalizedX}px), calc(-50% + ${normalizedY}px))`;
+                
+                // Set horizontal and vertical axes
+                joystick.horizontalAxis = normalizedX / joystick.maxDistance;
+                joystick.verticalAxis = normalizedY / joystick.maxDistance;
+            }
+        }
+
+        function resetJoystick(joystickId) {
+            const joystick = joysticks[joystickId];
+            joystick.active = false;
+            joystick.touchId = null;
+            joystick.horizontalAxis = 0;
+            joystick.verticalAxis = 0;
+            joystick.thumb.style.transform = 'translate(-50%, -50%)';
+            joystick.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
+        }
+
+        function updateGameControlsFromJoysticks() {
+            // Left joystick controls vertical movement (up/down) and turning (left/right)
+            if (joysticks.left.active) {
+                keys.ArrowUp = joysticks.left.verticalAxis < -0.3;
+                keys.ArrowDown = joysticks.left.verticalAxis > 0.3;
+                keys.ArrowLeft = joysticks.left.horizontalAxis < -0.3;
+                keys.ArrowRight = joysticks.left.horizontalAxis > 0.3;
+            } else {
+                keys.ArrowUp = false;
+                keys.ArrowDown = false;
+                keys.ArrowLeft = false;
+                keys.ArrowRight = false;
+            }
+            
+            // Right joystick controls forward/backward movement
+            if (joysticks.right.active) {
+                const verticalValue = joysticks.right.verticalAxis;
+                
+                // With inverted Y-axis in updateJoystickPosition:
+                // Positive values = forward (pushing up), negative values = backward (pushing down)
+                keys.f = verticalValue > 0.15;  // Forward (pushing up)
+                keys.r = verticalValue < -0.15; // Backward (pushing down)
+                
+                // Visual feedback for forward/backward movement
+                if (keys.f) {
+                    joysticks.right.thumb.style.backgroundColor = 'rgba(0, 255, 128, 0.6)'; // Green for forward
+                } else if (keys.r) {
+                    joysticks.right.thumb.style.backgroundColor = 'rgba(255, 128, 0, 0.6)'; // Orange for backward
+                } else {
+                    joysticks.right.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)'; // Default color
+                }
+            } else {
+                keys.f = false;
+                keys.r = false;
+                if (joysticks.right.thumb) {
+                    joysticks.right.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
+                }
+            }
+        }
     </script>
     <a target="_blank" href="https://jam.pieter.com" style="font-family: 'system-ui', sans-serif; position: fixed; bottom: -1px; right: -1px; padding: 7px; font-size: 14px; font-weight: bold; background: #fff; color: #000; text-decoration: none; z-index: 10; border-top-left-radius: 12px; z-index: 10000; border: 1px solid #fff;">🕹️ Vibe Jam 2025</a>
 </body>
