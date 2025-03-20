@@ -231,23 +231,27 @@
     <script src="https://threejs.org/examples/js/libs/dat.gui.min.js"></script>
     <script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
     <script>
-        // Mobile detection and warning
+        // Mobile detection and warning - show immediately
         function isMobileDevice() {
             return (window.innerWidth <= 800 || 
                    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
         }
         
-        // Initialize mobile warning on DOM ready
+        // Show mobile warning immediately if on mobile
+        if (isMobileDevice()) {
+            // Set display style directly on the element
+            document.write('<style>#mobile-warning{display:flex !important;}</style>');
+            console.log("Mobile device detected, showing warning immediately");
+        }
+        
+        // Add event listener for the "Continue Anyway" button
         document.addEventListener('DOMContentLoaded', function() {
-            // Display mobile warning if on mobile device
-            if (isMobileDevice()) {
-                document.getElementById('mobile-warning').style.display = 'flex';
+            const continueBtn = document.getElementById('continue-anyway');
+            if (continueBtn) {
+                continueBtn.addEventListener('click', function() {
+                    document.getElementById('mobile-warning').style.display = 'none';
+                });
             }
-            
-            // Add event listener for the "Continue Anyway" button
-            document.getElementById('continue-anyway').addEventListener('click', function() {
-                document.getElementById('mobile-warning').style.display = 'none';
-            });
         });
         
         // Rest of script content...
@@ -1140,6 +1144,18 @@
                     acceleration.add(fish.direction.clone().multiplyScalar(-accelerationRate * 0.5));
                 }
                 
+                // Direct joystick control - bypasses keys for more reliable movement on mobile
+                if (joysticks.right.active) {
+                    const verticalValue = joysticks.right.verticalAxis;
+                    if (verticalValue < 0) { // Pushing up - forward
+                        const power = Math.abs(verticalValue) * accelerationRate * 1.5; // More power
+                        acceleration.add(fish.direction.clone().multiplyScalar(power));
+                    } else if (verticalValue > 0) { // Pushing down - backward
+                        const power = verticalValue * accelerationRate * 0.75; // Less power for reverse
+                        acceleration.add(fish.direction.clone().multiplyScalar(-power));
+                    }
+                }
+                
                 // Up/down movement with momentum - reduced strength
                 if (keys.ArrowUp) {
                     fish.verticalMomentum += verticalAccelerationRate;
@@ -1793,11 +1809,21 @@
                 });
             }
 
-            // Animation loop
+            // Game animation loop
             let lastTime = 0;
-            function animate(timestamp) {
-                const deltaTime = Math.min(timestamp - lastTime, 100); // Cap delta time to avoid huge jumps
-                lastTime = timestamp;
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Update game state
+                const currentTime = performance.now();
+                const deltaTime = currentTime - lastTime;
+                lastTime = currentTime;
+                
+                // Update joystick controls even when touch isn't changing
+                // This ensures continuous movement as long as the joystick is active
+                if (joysticks.left.active || joysticks.right.active) {
+                    updateGameControlsFromJoysticks();
+                }
                 
                 // Update game elements
                 updateFish(deltaTime);
@@ -1811,9 +1837,6 @@
                 
                 // Render scene
                 renderer.render(scene, camera);
-                
-                // Continue animation loop
-                requestAnimationFrame(animate);
             }
             
             // Start animation loop
@@ -2111,8 +2134,16 @@
                 const verticalValue = joysticks.right.verticalAxis;
                 
                 // Forward when pushing up (negative Y value), backward when pushing down (positive Y value)
-                keys.f = verticalValue < -0.15; // More sensitive threshold for forward
-                keys.r = verticalValue > 0.15; // More sensitive threshold for reverse
+                const wasForward = keys.f;
+                const wasReverse = keys.r;
+                
+                keys.f = verticalValue < -0.05; // Much more sensitive threshold for forward
+                keys.r = verticalValue > 0.05; // Much more sensitive threshold for reverse
+                
+                // Debug joystick state changes
+                if (keys.f !== wasForward || keys.r !== wasReverse) {
+                    console.log(`Right joystick: F=${keys.f} R=${keys.r} Value=${verticalValue.toFixed(2)}`);
+                }
                 
                 // Make sure horizontal input on right joystick doesn't affect anything
                 joysticks.right.horizontalAxis = 0;
