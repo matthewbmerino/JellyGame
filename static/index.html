@@ -2058,28 +2058,24 @@
             let normalizedX = deltaX * scale;
             let normalizedY = deltaY * scale;
             
-            // For right joystick, restrict to vertical movement only - STRICT ENFORCEMENT
+            // For right joystick, only use vertical movement
             if (joystickId === 'right') {
-                normalizedX = 0; // Force horizontal axis to 0 for right joystick
-                
-                // Update thumb position - VERTICAL ONLY for right joystick
+                // Allow vertical movement but restrict horizontal
                 joystick.thumb.style.transform = `translate(-50%, calc(-50% + ${normalizedY}px))`;
+                joystick.horizontalAxis = 0;
             } else {
                 // Regular thumb position update for left joystick
                 joystick.thumb.style.transform = `translate(calc(-50% + ${normalizedX}px), calc(-50% + ${normalizedY}px))`;
+                joystick.horizontalAxis = normalizedX / joystick.maxDistance;
             }
             
-            // Update axis values (-1 to 1)
-            joystick.horizontalAxis = normalizedX / joystick.maxDistance;
+            // Update vertical axis value (-1 to 1)
             joystick.verticalAxis = normalizedY / joystick.maxDistance;
             
             // Clamp values
-            joystick.horizontalAxis = Math.max(-1, Math.min(1, joystick.horizontalAxis));
             joystick.verticalAxis = Math.max(-1, Math.min(1, joystick.verticalAxis));
-            
-            // Additional safeguard: force horizontal axis to 0 for right joystick
-            if (joystickId === 'right') {
-                joystick.horizontalAxis = 0;
+            if (joystickId === 'left') {
+                joystick.horizontalAxis = Math.max(-1, Math.min(1, joystick.horizontalAxis));
             }
         }
         
@@ -2106,18 +2102,20 @@
                 keys.ArrowRight = false;
             }
             
-            // Right joystick ONLY controls forward/backward movement with improved sensitivity
+            // Right joystick controls forward/backward movement
             if (joysticks.right.active) {
                 const verticalValue = joysticks.right.verticalAxis;
                 
                 // Forward when pushing up (negative Y value), backward when pushing down (positive Y value)
-                keys.f = verticalValue < -0.15; // More sensitive threshold for forward
-                keys.r = verticalValue > 0.15; // More sensitive threshold for reverse
+                keys.f = verticalValue < -0.15; // Forward
+                keys.r = verticalValue > 0.15;  // Reverse
                 
-                // Make sure horizontal input on right joystick doesn't affect anything
-                joysticks.right.horizontalAxis = 0;
+                // Clear any left/right movement from right joystick
+                if (joysticks.right.horizontalAxis !== 0) {
+                    joysticks.right.horizontalAxis = 0;
+                }
                 
-                // Visual debug: Add a color indicator to the joystick thumb based on forward/backward
+                // Visual feedback for forward/backward movement
                 if (keys.f) {
                     joysticks.right.thumb.style.backgroundColor = 'rgba(0, 255, 128, 0.6)'; // Green for forward
                 } else if (keys.r) {
@@ -2128,7 +2126,6 @@
             } else {
                 keys.f = false;
                 keys.r = false;
-                // Reset thumb color when inactive
                 if (joysticks.right.thumb) {
                     joysticks.right.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
                 }
