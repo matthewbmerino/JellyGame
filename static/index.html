@@ -368,9 +368,7 @@
                 viewMode: 'third', // 'first' or 'third'
                 jellyfishCount: 30, // Starting jellyfish count
                 boundarySize: 1000,
-                goalReached: false,
-                shellsCollected: 0,
-                requiredShells: 3 // How many shells needed to complete a level
+                goalReached: false
             };
 
             // Setup scene
@@ -973,8 +971,7 @@
             const goal = {
                 object: new THREE.Group(),
                 radius: 15,
-                active: true,
-                locked: true // Goal is locked until all shells are collected
+                active: true
             };
             
             const ringGeometry = new THREE.TorusGeometry(goal.radius, 1, 16, 32);
@@ -1022,82 +1019,6 @@
             // Position goal
             goal.object.position.set(0, 0, -200);
             scene.add(goal.object);
-
-            // Create seashells that need to be collected before the goal is unlocked
-            const seashells = [];
-            
-            function createSeashell() {
-                const seashell = {
-                    object: new THREE.Group(),
-                    radius: 2,
-                    collected: false,
-                    rotationSpeed: 0.01 + Math.random() * 0.01,
-                    bobPhase: Math.random() * Math.PI * 2,
-                    bobSpeed: 0.5 + Math.random() * 0.5
-                };
-                
-                // Create shell geometry
-                const shellGeometry = new THREE.TorusKnotGeometry(1, 0.4, 64, 8, 2, 3);
-                const shellMaterial = new THREE.MeshStandardMaterial({
-                    color: 0xffe6b3,
-                    metalness: 0.3,
-                    roughness: 0.7,
-                    emissive: 0xffcc66,
-                    emissiveIntensity: 0.2
-                });
-                
-                const shellMesh = new THREE.Mesh(shellGeometry, shellMaterial);
-                seashell.object.add(shellMesh);
-                
-                // Add a glow effect
-                const glowGeometry = new THREE.SphereGeometry(2, 16, 16);
-                const glowMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xffdd99,
-                    transparent: true,
-                    opacity: 0.3,
-                    side: THREE.BackSide
-                });
-                
-                const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-                seashell.object.add(glowMesh);
-                
-                // Position the seashell randomly in the scene
-                const angle = Math.random() * Math.PI * 2;
-                const distance = 50 + Math.random() * 150;
-                
-                seashell.object.position.set(
-                    Math.cos(angle) * distance,
-                    Math.random() * 60 - 30,
-                    Math.sin(angle) * distance
-                );
-                
-                scene.add(seashell.object);
-                return seashell;
-            }
-            
-            // Create initial seashells
-            function createSeashells() {
-                // Remove any existing seashells
-                for (const shell of seashells) {
-                    scene.remove(shell.object);
-                }
-                seashells.length = 0;
-                
-                // Create new seashells
-                const shellCount = gameState.requiredShells + Math.min(gameState.level - 1, 5); // Add more shells in higher levels
-                for (let i = 0; i < shellCount; i++) {
-                    seashells.push(createSeashell());
-                }
-                
-                // Reset collection state
-                gameState.shellsCollected = 0;
-                
-                // Update UI
-                document.getElementById('shells-collected').textContent = gameState.shellsCollected;
-                document.getElementById('shells-required').textContent = gameState.requiredShells;
-            }
-            
-            createSeashells();
 
             // Controls
             const keys = {
@@ -1440,62 +1361,6 @@
                 });
             }
             
-            function updateSeashells(deltaTime) {
-                const time = performance.now() * 0.001;
-                
-                seashells.forEach(seashell => {
-                    if (!seashell.collected) {
-                        // Rotate the seashell
-                        seashell.object.rotation.y += seashell.rotationSpeed * deltaTime;
-                        
-                        // Bob up and down
-                        const bobHeight = Math.sin(time * seashell.bobSpeed + seashell.bobPhase) * 0.5;
-                        seashell.object.position.y += bobHeight * deltaTime;
-                        
-                        // Check collision with fish
-                        const distance = seashell.object.position.distanceTo(fish.object.position);
-                        if (distance < seashell.radius + fish.boundingRadius) {
-                            // Collect the seashell
-                            seashell.collected = true;
-                            seashell.object.visible = false;
-                            
-                            // Update game state
-                            gameState.shellsCollected++;
-                            gameState.score += 50; // Award points
-                            
-                            // Play collection sound if available
-                            if (typeof collectSound !== 'undefined' && collectSound) {
-                                collectSound.play();
-                            }
-                            
-                            // Check if enough shells have been collected
-                            if (gameState.shellsCollected >= gameState.requiredShells) {
-                                // Unlock the goal
-                                goal.locked = false;
-                                
-                                // Change goal color to green to indicate it's unlocked
-                                ring.material.color.setHex(0x00ff00);
-                                ring.material.emissive.setHex(0x00ff00);
-                                
-                                // Show message
-                                const messageElement = document.getElementById('shell-message');
-                                messageElement.textContent = 'Goal Unlocked!';
-                                messageElement.style.display = 'block';
-                                
-                                // Hide message after 3 seconds
-                                setTimeout(() => {
-                                    messageElement.style.display = 'none';
-                                }, 3000);
-                            }
-                            
-                            // Update UI
-                            document.getElementById('shells-collected').textContent = gameState.shellsCollected;
-                            document.getElementById('score').textContent = gameState.score;
-                        }
-                    }
-                });
-            }
-            
             function updateGoal(deltaTime) {
                 const time = performance.now() * 0.001;
                 
@@ -1510,7 +1375,7 @@
                 goal.object.scale.set(pulseScale, pulseScale, pulseScale);
                 
                 // Check if fish reached goal
-                if (goal.active && !goal.locked) {
+                if (goal.active) {
                     const distance = goal.object.position.distanceTo(fish.object.position);
                     if (distance < goal.radius) {
                         winGame();
@@ -1775,14 +1640,8 @@
                 goal.radius = newRadius;
                 goal.object.scale.set(newRadius/15, newRadius/15, newRadius/15);
                 
-                // Reset goal color and state
-                ring.material.color.setHex(0xff0000);
-                ring.material.emissive.setHex(0xff0000);
+                // Reactivate goal
                 goal.active = true;
-                goal.locked = true;
-                
-                // Create new seashells for this level
-                createSeashells();
                 
                 // Update UI
                 document.getElementById('level').textContent = gameState.level;
@@ -1795,7 +1654,6 @@
                 gameState.goalReached = false;
                 gameState.level = 1;
                 gameState.score = 0;
-                gameState.shellsCollected = 0;
                 
                 // Hide message
                 document.getElementById('game-message').style.display = 'none';
@@ -1837,18 +1695,10 @@
                 goal.object.scale.set(1, 1, 1);
                 goal.object.position.set(0, 0, -200);
                 goal.active = true;
-                goal.locked = true;
-                ring.material.color.setHex(0xff0000);
-                ring.material.emissive.setHex(0xff0000);
-                
-                // Reset seashells
-                createSeashells();
                 
                 // Update UI
                 document.getElementById('score').textContent = gameState.score;
                 document.getElementById('level').textContent = gameState.level;
-                document.getElementById('shells-collected').textContent = gameState.shellsCollected;
-                document.getElementById('shells-required').textContent = gameState.requiredShells;
             }
             
             // Handle window resize
@@ -1941,18 +1791,6 @@
                     minimapCtx.arc(jellyX, jellyZ, 2, 0, Math.PI * 2);
                     minimapCtx.fill();
                 });
-                
-                // Draw seashells
-                seashells.forEach(shell => {
-                    if (!shell.collected) {
-                        const shellX = (shell.object.position.x + gameState.boundarySize/2) * minimapScale;
-                        const shellZ = (shell.object.position.z + gameState.boundarySize/2) * minimapScale;
-                        minimapCtx.fillStyle = 'gold';
-                        minimapCtx.beginPath();
-                        minimapCtx.arc(shellX, shellZ, 2, 0, Math.PI * 2);
-                        minimapCtx.fill();
-                    }
-                });
             }
 
             // Animation loop
@@ -1964,7 +1802,6 @@
                 // Update game elements
                 updateFish(deltaTime);
                 updateJellyfishes(deltaTime);
-                updateSeashells(deltaTime); // Add this line
                 updateGoal(deltaTime);
                 updateParticles(deltaTime);
                 updateWater(deltaTime);
