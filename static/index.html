@@ -1149,20 +1149,19 @@
                 const accelerationRate = 0.004 * deltaTime;
                 const verticalAccelerationRate = 0.0015 * deltaTime;
                 
-                // Forward/backward movement
+                // Forward/backward movement - update to directly control Z direction
                 if (keys.f) {
-                    acceleration.add(fish.direction.clone().multiplyScalar(accelerationRate));
-                    // Debug information
-                    if (Math.random() < 0.01) { // Only log occasionally to avoid console spam
-                        console.log("Moving FORWARD", keys.f, fish.direction);
-                    }
+                    // Use the fish's normalized forward direction vector
+                    const forwardDir = fish.direction.clone().normalize();
+                    // Apply force in that direction
+                    acceleration.add(forwardDir.multiplyScalar(accelerationRate * 1.5));
                 }
+
                 if (keys.r) {
-                    acceleration.add(fish.direction.clone().multiplyScalar(-accelerationRate * 0.5));
-                    // Debug information
-                    if (Math.random() < 0.01) { // Only log occasionally to avoid console spam
-                        console.log("Moving BACKWARD", keys.r, fish.direction);
-                    }
+                    // Use the fish's normalized forward direction vector (reversed for backward)
+                    const backwardDir = fish.direction.clone().normalize();
+                    // Apply force in the opposite direction (backward)
+                    acceleration.add(backwardDir.multiplyScalar(-accelerationRate * 0.8));
                 }
                 
                 // Up/down movement with momentum - reduced strength
@@ -2150,7 +2149,11 @@
                 
                 // Calculate vertical axis (-1 to 1), negate for intuitive controls
                 // (Up = forward = positive, Down = backward = negative)
-                joystick.verticalAxis = -normalizedY / joystick.maxDistance;
+                // Apply extra sensitivity for better control
+                joystick.verticalAxis = -normalizedY / joystick.maxDistance * 1.5;
+                
+                // Clamp to valid range (-1 to 1)
+                joystick.verticalAxis = Math.max(-1, Math.min(1, joystick.verticalAxis));
             } else {
                 // LEFT JOYSTICK: DIRECTIONAL MOVEMENT
                 
@@ -2193,8 +2196,35 @@
                 
                 // With inverted Y-axis in updateJoystickPosition:
                 // Positive values = forward (pushing up), negative values = backward (pushing down)
-                keys.f = verticalValue > 0.15;  // Forward (pushing up)
-                keys.r = verticalValue < -0.15; // Backward (pushing down)
+                // Lower the threshold for better responsiveness
+                keys.f = verticalValue > 0.05;  // Forward (pushing up)
+                keys.r = verticalValue < -0.05; // Backward (pushing down)
+                
+                // Add visible debug info
+                const debugInfo = document.getElementById('joystick-debug') || document.createElement('div');
+                if (!document.getElementById('joystick-debug')) {
+                    debugInfo.id = 'joystick-debug';
+                    debugInfo.style.position = 'fixed';
+                    debugInfo.style.top = '50%';
+                    debugInfo.style.left = '50%';
+                    debugInfo.style.transform = 'translate(-50%, -50%)';
+                    debugInfo.style.background = 'rgba(0,0,0,0.7)';
+                    debugInfo.style.color = 'white';
+                    debugInfo.style.padding = '20px';
+                    debugInfo.style.borderRadius = '10px';
+                    debugInfo.style.fontFamily = 'Arial, sans-serif';
+                    debugInfo.style.fontSize = '24px';
+                    debugInfo.style.zIndex = '9999';
+                    document.body.appendChild(debugInfo);
+                }
+                
+                // Show debug information
+                debugInfo.innerHTML = `
+                    RIGHT JOYSTICK:<br>
+                    Value: ${verticalValue.toFixed(2)}<br>
+                    Forward: ${keys.f ? 'ON' : 'OFF'}<br>
+                    Backward: ${keys.r ? 'ON' : 'OFF'}
+                `;
                 
                 // Visual feedback for forward/backward movement
                 if (keys.f) {
@@ -2209,6 +2239,12 @@
                 keys.r = false;
                 if (joysticks.right.thumb) {
                     joysticks.right.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
+                }
+                
+                // Hide debug info when inactive
+                const debugInfo = document.getElementById('joystick-debug');
+                if (debugInfo) {
+                    debugInfo.remove();
                 }
             }
         }
