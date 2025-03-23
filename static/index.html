@@ -247,6 +247,18 @@
                    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
         }
         
+        // Initialize global keys object for both keyboard and touch controls
+        window.keys = {
+            ArrowUp: false,    // Up (move upward)
+            ArrowDown: false,  // Down (move downward)
+            ArrowLeft: false,  // Left (turn left)
+            ArrowRight: false, // Right (turn right)
+            f: false,          // Forward
+            r: false,          // Reverse
+            ' ': false,        // Space
+            v: false           // Toggle view
+        };
+        
         // Initialize mobile warning on DOM ready
         document.addEventListener('DOMContentLoaded', function() {
             // Display mobile warning if on mobile device
@@ -278,9 +290,9 @@
             if (debugOverlay) {
                 debugOverlay.style.display = 'block';
                 debugOverlay.innerHTML = `
-                    Keys: Up=${keys.ArrowUp}, Down=${keys.ArrowDown}, 
-                    Left=${keys.ArrowLeft}, Right=${keys.ArrowRight}, 
-                    F=${keys.f}, R=${keys.r}
+                    Keys: Up=${window.keys.ArrowUp}, Down=${window.keys.ArrowDown}, 
+                    Left=${window.keys.ArrowLeft}, Right=${window.keys.ArrowRight}, 
+                    F=${window.keys.f}, R=${window.keys.r}
                 `;
                 requestAnimationFrame(updateDebugOverlay);
             }
@@ -1553,30 +1565,23 @@
                 v: false           // Toggle view
             };
             
+            // Use the global keys object for both 2D and 3D modes
+            window.keys = keys;
+            
             window.addEventListener('keydown', (e) => {
-                if (keys.hasOwnProperty(e.key)) {
-                    keys[e.key] = true;
-                    
-                    // Toggle view mode with 'v' key
-                    if (e.key === 'v' && !gameState.gameOver && !gameState.gameWon) {
-                        gameState.viewMode = gameState.viewMode === 'first' ? 'third' : 'first';
-                        document.getElementById('view-mode-text').textContent = gameState.viewMode.toUpperCase() + ' PERSON';
-                    }
-                    
-                    // Handle space key for game progression
-                    if (e.key === ' ') {
-                        if (gameState.gameOver || gameState.gameWon) {
-                            resetGame();
-                        } else if (gameState.goalReached) {
-                            nextLevel();
-                        }
-                    }
+                if (window.keys.hasOwnProperty(e.key)) {
+                    window.keys[e.key] = true;
+                }
+                
+                // Toggle view mode with 'v' key
+                if (e.key === 'v') {
+                    fish.viewMode = fish.viewMode === 'first' ? 'third' : 'first';
                 }
             });
             
             window.addEventListener('keyup', (e) => {
-                if (keys.hasOwnProperty(e.key)) {
-                    keys[e.key] = false;
+                if (window.keys.hasOwnProperty(e.key)) {
+                    window.keys[e.key] = false;
                 }
             });
 
@@ -1591,9 +1596,9 @@
                 const maxAngularMomentum = 0.01 * deltaTime;
                 
                 // Turn left/right with momentum
-                if (keys.ArrowLeft) {
+                if (window.keys.ArrowLeft) {
                     fish.angularMomentum += turnAcceleration;
-                } else if (keys.ArrowRight) {
+                } else if (window.keys.ArrowRight) {
                     fish.angularMomentum -= turnAcceleration;
                 } else {
                     // Gradually reduce angular momentum when not turning
@@ -1615,14 +1620,14 @@
                 const verticalAccelerationRate = 0.0015 * deltaTime;
                 
                 // Forward/backward movement - update to directly control Z direction
-                if (keys.f) {
+                if (window.keys.f) {
                     // Use the fish's normalized forward direction vector
                     const forwardDir = fish.direction.clone().normalize();
                     // Apply force in that direction
                     acceleration.add(forwardDir.multiplyScalar(accelerationRate * 1.5));
                 }
 
-                if (keys.r) {
+                if (window.keys.r) {
                     // Use the fish's normalized forward direction vector (reversed for backward)
                     const backwardDir = fish.direction.clone().normalize();
                     // Apply force in the opposite direction (backward)
@@ -1630,9 +1635,9 @@
                 }
                 
                 // Up/down movement with momentum - reduced strength
-                if (keys.ArrowUp) {
+                if (window.keys.ArrowUp) {
                     fish.verticalMomentum += verticalAccelerationRate;
-                } else if (keys.ArrowDown) {
+                } else if (window.keys.ArrowDown) {
                     fish.verticalMomentum -= verticalAccelerationRate;
                 } else {
                     // Gradually reduce vertical momentum - slightly faster decay for better control
@@ -1729,7 +1734,7 @@
                 
                 // Smooth body roll based on turning - more pronounced when moving faster
                 const turnIntensity = Math.min(movingSpeed * 10, 1);
-                const targetRoll = keys.ArrowLeft ? 0.3 * turnIntensity : (keys.ArrowRight ? -0.3 * turnIntensity : 0);
+                const targetRoll = window.keys.ArrowLeft ? 0.3 * turnIntensity : (window.keys.ArrowRight ? -0.3 * turnIntensity : 0);
                 fish.object.rotation.z += (targetRoll - fish.object.rotation.z) * 0.05;
                 
                 // Smooth pitch based on vertical movement
@@ -2489,21 +2494,12 @@
             let score = 0;
             let cameraAngle = 0; // For slight camera rotation
             
-            // Controls
-            const keys = {
-                ArrowUp: false,
-                ArrowDown: false,
-                ArrowLeft: false,
-                ArrowRight: false,
-                f: false,          // Forward
-                r: false,          // Reverse
-                ' ': false,
-                v: false // For toggling view mode
-            };
+            // Use the global window.keys object that was defined earlier
+            // This ensures mobile controls affect both 2D and 3D modes consistently
             
             window.addEventListener('keydown', (e) => {
-                if (keys.hasOwnProperty(e.key)) {
-                    keys[e.key] = true;
+                if (window.keys.hasOwnProperty(e.key)) {
+                    window.keys[e.key] = true;
                 }
                 
                 // Toggle view mode with 'v' key
@@ -2513,8 +2509,8 @@
             });
             
             window.addEventListener('keyup', (e) => {
-                if (keys.hasOwnProperty(e.key)) {
-                    keys[e.key] = false;
+                if (window.keys.hasOwnProperty(e.key)) {
+                    window.keys[e.key] = false;
                 }
             });
             
