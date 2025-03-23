@@ -1140,8 +1140,11 @@
             function createCsignLogo() {
                 // Create group for the csign logo
                 const csignLogoGroup = new THREE.Group();
-                // Position on the opposite side from the vibeverse portal
-                csignLogoGroup.position.set(200, 20, 300); // Opposite of (-200, 20, -300) approximate portal position
+                // Position side by side with the exit portal, equidistant from the start portal
+                // Exit portal is at (-200, 20, -300), so position logo at similar distance but side by side
+                csignLogoGroup.position.set(-300, 20, -200); // Side by side with exit portal
+                // Adjust rotation to face toward center
+                csignLogoGroup.rotation.y = Math.PI / 4; // Rotate to face more toward center
                 
                 // First create with a placeholder - we'll adjust size once texture loads
                 const logoGeometry = new THREE.PlaneGeometry(1, 1);
