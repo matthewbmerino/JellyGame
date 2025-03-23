@@ -1854,7 +1854,7 @@
                 
                 // Reset fish position
                 fish.object.position.set(0, 0, 0);
-                fish.object.rotation.set(0, 0, 0); // Reset rotation (fish now faces negative Z direction by default)
+                fish.object.rotation.set(0, Math.PI, 0); // Rotate 180 degrees around Y axis to face toward the goal at (0,0,-200)
                 fish.momentum.set(0, 0, 0);
                 fish.angularMomentum = 0;
                 
