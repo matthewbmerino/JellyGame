@@ -99,13 +99,14 @@
             position: fixed;
             width: 240px; /* Half size from 480px */
             height: 240px; /* Half size from 480px */
-            background-color: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            background-color: rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.5);
             border-radius: 50%;
             display: none; /* Hidden by default, shown on mobile */
             touch-action: none;
             z-index: 1000;
             bottom: 30px; /* Position at bottom */
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
         }
         
         #vertical-joystick {
@@ -122,14 +123,14 @@
             position: absolute;
             width: 100px; /* Half size from 200px */
             height: 100px; /* Half size from 200px */
-            background-color: rgba(255, 255, 255, 0.4);
-            border: 2px solid rgba(255, 255, 255, 0.6);
+            background-color: rgba(255, 255, 255, 0.6);
+            border: 3px solid rgba(255, 255, 255, 0.8);
             border-radius: 50%;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.6);
         }
         
         .joystick-label {
@@ -191,6 +192,11 @@
     <div id="horizontal-joystick" class="joystick-container">
         <div class="joystick-knob"></div>
         <div class="joystick-label">↑ FORWARD ↓<br><small>← STEER →</small></div>
+    </div>
+    
+    <!-- Joystick helper instructions -->
+    <div id="joystick-help" style="position: fixed; top: 10px; left: 0; right: 0; text-align: center; color: white; background-color: rgba(0,0,0,0.5); padding: 10px; font-family: 'Arial', sans-serif; display: none; z-index: 1001;">
+        Tap and drag on joysticks to move. <br>Left joystick: up/down, Right joystick: forward/backward & steer
     </div>
     
     <!-- Minimap -->
@@ -270,17 +276,27 @@
                 
                 // Show debug overlay for mobile
                 document.getElementById('debug-overlay').style.display = 'block';
+                
+                // Show joysticks immediately on mobile (don't wait for "Continue Anyway")
+                document.getElementById('vertical-joystick').style.display = 'block';
+                document.getElementById('horizontal-joystick').style.display = 'block';
+                
+                // Show joystick help text
+                document.getElementById('joystick-help').style.display = 'block';
+                
+                // Auto-hide joystick help after 10 seconds
+                setTimeout(function() {
+                    document.getElementById('joystick-help').style.opacity = '0';
+                    document.getElementById('joystick-help').style.transition = 'opacity 1s';
+                    setTimeout(function() {
+                        document.getElementById('joystick-help').style.display = 'none';
+                    }, 1000);
+                }, 10000);
             }
             
             // Add event listener for the "Continue Anyway" button
             document.getElementById('continue-anyway').addEventListener('click', function() {
                 document.getElementById('mobile-warning').style.display = 'none';
-                
-                // Show joysticks when continuing on mobile
-                if (isMobileDevice()) {
-                    document.getElementById('vertical-joystick').style.display = 'block';
-                    document.getElementById('horizontal-joystick').style.display = 'block';
-                }
             });
         });
         
@@ -326,7 +342,8 @@
                     active: false,
                     value: 0,
                     startY: 0,
-                    maxDistance: 80
+                    maxDistance: 80,
+                    touchId: null
                 },
                 horizontal: {
                     active: false,
@@ -334,7 +351,8 @@
                     valueY: 0,
                     startX: 0,
                     startY: 0,
-                    maxDistance: 80
+                    maxDistance: 80,
+                    touchId: null
                 }
             };
             
@@ -342,12 +360,25 @@
             verticalJoystick.addEventListener('touchstart', function(e) {
                 e.preventDefault();
                 joystickState.vertical.active = true;
+                // Store the identifier of the touch that started on this joystick
+                joystickState.vertical.touchId = e.touches[0].identifier;
             });
             
             verticalJoystick.addEventListener('touchmove', function(e) {
                 e.preventDefault();
                 if (joystickState.vertical.active) {
-                    const touch = e.touches[0];
+                    // Find the touch that started on this joystick
+                    let touch = null;
+                    for (let i = 0; i < e.touches.length; i++) {
+                        if (e.touches[i].identifier === joystickState.vertical.touchId) {
+                            touch = e.touches[i];
+                            break;
+                        }
+                    }
+                    
+                    // If we can't find the touch that started on this joystick, do nothing
+                    if (!touch) return;
+                    
                     const rect = verticalJoystick.getBoundingClientRect();
                     
                     // Calculate center and movement
@@ -365,22 +396,54 @@
                     // Set movement keys
                     window.keys.ArrowUp = joystickState.vertical.value < -0.3;
                     window.keys.ArrowDown = joystickState.vertical.value > 0.3;
+                    
+                    // Debug
+                    console.log('Vertical joystick value:', joystickState.vertical.value);
                 }
             });
             
             verticalJoystick.addEventListener('touchend', function(e) {
                 e.preventDefault();
-                resetVerticalJoystick();
+                // Check if the touch that ended is the one that started on this joystick
+                let touchEndedOnThisJoystick = true;
+                if (e.changedTouches) {
+                    touchEndedOnThisJoystick = false;
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        if (e.changedTouches[i].identifier === joystickState.vertical.touchId) {
+                            touchEndedOnThisJoystick = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (touchEndedOnThisJoystick) {
+                    resetVerticalJoystick();
+                }
             });
             
             verticalJoystick.addEventListener('touchcancel', function(e) {
                 e.preventDefault();
-                resetVerticalJoystick();
+                // Similar check for touchcancel
+                let touchCanceledOnThisJoystick = true;
+                if (e.changedTouches) {
+                    touchCanceledOnThisJoystick = false;
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        if (e.changedTouches[i].identifier === joystickState.vertical.touchId) {
+                            touchCanceledOnThisJoystick = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (touchCanceledOnThisJoystick) {
+                    resetVerticalJoystick();
+                }
             });
             
             function resetVerticalJoystick() {
                 joystickState.vertical.active = false;
                 joystickState.vertical.value = 0;
+                joystickState.vertical.touchId = null;
                 verticalKnob.style.transform = 'translate(-50%, -50%)';
                 window.keys.ArrowUp = false;
                 window.keys.ArrowDown = false;
@@ -390,12 +453,25 @@
             horizontalJoystick.addEventListener('touchstart', function(e) {
                 e.preventDefault();
                 joystickState.horizontal.active = true;
+                // Store the identifier of the touch that started on this joystick
+                joystickState.horizontal.touchId = e.touches[0].identifier;
             });
             
             horizontalJoystick.addEventListener('touchmove', function(e) {
                 e.preventDefault();
                 if (joystickState.horizontal.active) {
-                    const touch = e.touches[0];
+                    // Find the touch that started on this joystick
+                    let touch = null;
+                    for (let i = 0; i < e.touches.length; i++) {
+                        if (e.touches[i].identifier === joystickState.horizontal.touchId) {
+                            touch = e.touches[i];
+                            break;
+                        }
+                    }
+                    
+                    // If we can't find the touch that started on this joystick, do nothing
+                    if (!touch) return;
+                    
                     const rect = horizontalJoystick.getBoundingClientRect();
                     
                     // Calculate center and movement
@@ -426,23 +502,55 @@
                     window.keys.ArrowRight = joystickState.horizontal.valueX > 0.3;
                     window.keys.f = joystickState.horizontal.valueY < -0.3;
                     window.keys.r = joystickState.horizontal.valueY > 0.3;
+                    
+                    // Debug
+                    console.log('Horizontal joystick valueX:', joystickState.horizontal.valueX, 'valueY:', joystickState.horizontal.valueY);
                 }
             });
             
             horizontalJoystick.addEventListener('touchend', function(e) {
                 e.preventDefault();
-                resetHorizontalJoystick();
+                // Check if the touch that ended is the one that started on this joystick
+                let touchEndedOnThisJoystick = true;
+                if (e.changedTouches) {
+                    touchEndedOnThisJoystick = false;
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        if (e.changedTouches[i].identifier === joystickState.horizontal.touchId) {
+                            touchEndedOnThisJoystick = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (touchEndedOnThisJoystick) {
+                    resetHorizontalJoystick();
+                }
             });
             
             horizontalJoystick.addEventListener('touchcancel', function(e) {
                 e.preventDefault();
-                resetHorizontalJoystick();
+                // Similar check for touchcancel
+                let touchCanceledOnThisJoystick = true;
+                if (e.changedTouches) {
+                    touchCanceledOnThisJoystick = false;
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        if (e.changedTouches[i].identifier === joystickState.horizontal.touchId) {
+                            touchCanceledOnThisJoystick = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (touchCanceledOnThisJoystick) {
+                    resetHorizontalJoystick();
+                }
             });
             
             function resetHorizontalJoystick() {
                 joystickState.horizontal.active = false;
                 joystickState.horizontal.valueX = 0;
                 joystickState.horizontal.valueY = 0;
+                joystickState.horizontal.touchId = null;
                 horizontalKnob.style.transform = 'translate(-50%, -50%)';
                 window.keys.ArrowLeft = false;
                 window.keys.ArrowRight = false;
