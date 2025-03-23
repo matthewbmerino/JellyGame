@@ -1156,8 +1156,8 @@
                 });
                 
                 const logoMesh = new THREE.Mesh(logoGeometry, logoMaterial);
-                // Rotate to face toward center of game area
-                logoMesh.rotation.y = Math.PI / 2; // Rotate to face toward center
+                // Rotate to face toward player's starting position
+                logoMesh.rotation.y = Math.PI; // Rotate to face the starting position and read left to right
                 csignLogoGroup.add(logoMesh);
                 
                 // Try to load texture with error handling
@@ -1817,7 +1817,7 @@
                 
                 // Reset fish position
                 fish.object.position.set(0, 0, 0);
-                fish.object.rotation.set(0, 0, 0);
+                fish.object.rotation.set(0, Math.PI, 0); // Rotate 180 degrees to face the objects
                 fish.momentum.set(0, 0, 0);
                 fish.angularMomentum = 0;
                 
