@@ -1143,14 +1143,13 @@
                 // Position on the opposite side from the vibeverse portal
                 csignLogoGroup.position.set(200, 20, 300); // Opposite of (-200, 20, -300) approximate portal position
                 
-                // Create a plane for the logo using its natural dimensions
-                const logoGeometry = new THREE.PlaneGeometry(20, 20);
+                // First create with a placeholder - we'll adjust size once texture loads
+                const logoGeometry = new THREE.PlaneGeometry(1, 1);
                 
-                // First create with a solid color as fallback
+                // Create material without transparency
                 const logoMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x0088ff,
-                    transparent: true,
-                    opacity: 0.8,
+                    color: 0xffffff,
+                    transparent: false,
                     side: THREE.DoubleSide
                 });
                 
@@ -1166,8 +1165,21 @@
                         'csign_logo.png',
                         // Success callback
                         function(texture) {
+                            // Get the natural dimensions of the texture
+                            const width = texture.image.width;
+                            const height = texture.image.height;
+                            const aspectRatio = width / height;
+                            
+                            // Set a reasonable display size while maintaining aspect ratio
+                            const displayHeight = 20;
+                            const displayWidth = displayHeight * aspectRatio;
+                            
+                            // Update geometry to match the natural aspect ratio
+                            logoMesh.geometry.dispose(); // Clean up old geometry
+                            logoMesh.geometry = new THREE.PlaneGeometry(displayWidth, displayHeight);
+                            
+                            // Apply texture
                             logoMaterial.map = texture;
-                            logoMaterial.color.set(0xffffff); // Reset to white when texture is loaded
                             logoMaterial.needsUpdate = true;
                         },
                         // Progress callback
@@ -1175,27 +1187,13 @@
                         // Error callback
                         function(err) {
                             console.error('Error loading texture:', err);
-                            // Keep using the color material as fallback
+                            // Keep using the placeholder as fallback
                         }
                     );
                 } catch (e) {
                     console.error('Exception loading texture:', e);
-                    // Keep using the color material as fallback
+                    // Keep using the placeholder as fallback
                 }
-
-                // Add a simple glow effect
-                const glowGeometry = new THREE.CircleGeometry(12, 32);
-                const glowMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x00aaff,
-                    transparent: true,
-                    opacity: 0.3,
-                    side: THREE.DoubleSide
-                });
-                
-                const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-                glowMesh.position.z = -0.1;
-                glowMesh.rotation.y = -Math.PI / 2; // Match rotation of logo
-                csignLogoGroup.add(glowMesh);
                 
                 // Add the csign logo group to scene
                 scene.add(csignLogoGroup);
