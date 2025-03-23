@@ -267,8 +267,9 @@
         
         // Initialize mobile warning on DOM ready
         document.addEventListener('DOMContentLoaded', function() {
-            // Display mobile warning if on mobile device
+            // Only set up mobile-specific UI if on a mobile device
             if (isMobileDevice()) {
+                // Show mobile warning
                 document.getElementById('mobile-warning').style.display = 'flex';
                 
                 // Setup mobile joysticks
@@ -292,12 +293,15 @@
                         document.getElementById('joystick-help').style.display = 'none';
                     }, 1000);
                 }, 10000);
-            }
-            
-            // Add event listener for the "Continue Anyway" button
-            document.getElementById('continue-anyway').addEventListener('click', function() {
+                
+                // Add event listener for the "Continue Anyway" button
+                document.getElementById('continue-anyway').addEventListener('click', function() {
+                    document.getElementById('mobile-warning').style.display = 'none';
+                });
+            } else {
+                // For desktop devices, hide the mobile warning completely
                 document.getElementById('mobile-warning').style.display = 'none';
-            });
+            }
         });
         
         // Global function for updating debug overlay
