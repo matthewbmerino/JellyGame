@@ -2174,10 +2174,17 @@
                 // Show game over message
                 const messageElement = document.getElementById('game-message');
                 const titleElement = document.getElementById('message-title');
+                const textElement = document.getElementById('message-text');
                 
                 messageElement.style.display = 'block';
                 titleElement.textContent = 'Game Over! You got stung!';
                 titleElement.style.color = 'red';
+                textElement.textContent = 'Restarting game...';
+                
+                // Auto restart after a delay
+                setTimeout(() => {
+                    resetGame();
+                }, 2000); // 2 second delay before restart
             }
             
             function winGame() {
@@ -2194,11 +2201,11 @@
                 titleElement.style.color = 'green';
                 
                 if (gameState.level < 5) {
-                    textElement.textContent = 'Press Space to continue to level ' + (gameState.level + 1);
+                    textElement.textContent = 'Advancing to level ' + (gameState.level + 1) + '...';
                 } else {
                     gameState.gameWon = true;
                     titleElement.textContent = 'You Win! Game Complete!';
-                    textElement.textContent = 'Press Space to play again';
+                    textElement.textContent = 'Restarting game...';
                 }
                 
                 // Deactivate goal
@@ -2402,6 +2409,7 @@
 
             // Animation loop
             let lastTime = 0;
+            let autoLevelAdvanceTimer = null;
             function animate(timestamp) {
                 const deltaTime = Math.min(timestamp - lastTime, 100); // Cap delta time to avoid huge jumps
                 lastTime = timestamp;
@@ -2415,6 +2423,24 @@
                 updateCamera();
                 updateUI();
                 updateMinimap(); // Add minimap update
+                
+                // Auto-advance to the next level if goal is reached (instead of waiting for space)
+                if (gameState.goalReached && !autoLevelAdvanceTimer) {
+                    // Clear any existing timer just in case
+                    if (autoLevelAdvanceTimer) {
+                        clearTimeout(autoLevelAdvanceTimer);
+                    }
+                    
+                    // Set a short delay before advancing to next level to show the level complete message briefly
+                    autoLevelAdvanceTimer = setTimeout(() => {
+                        if (gameState.gameWon) {
+                            resetGame(); // If game is won, restart
+                        } else {
+                            nextLevel(); // Otherwise advance to next level
+                        }
+                        autoLevelAdvanceTimer = null;
+                    }, 1500); // 1.5 second delay to briefly show the "Level Complete" message
+                }
                 
                 // Portal system checks
                 if (new URLSearchParams(window.location.search).get('portal')) {
