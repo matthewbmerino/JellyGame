@@ -2083,9 +2083,9 @@
                         const textElement = document.getElementById('message-text');
                         
                         messageElement.style.display = 'block';
-                        titleElement.textContent = 'Metaverse Portal Detected!';
+                        titleElement.textContent = 'Vibeverse Portal Detected!';
                         titleElement.style.color = '#00ff00';
-                        textElement.textContent = 'Swim closer to enter the metaverse!';
+                        textElement.textContent = 'Swim closer to enter the vibeverse!';
                         
                         // Start loading the next page in the background
                         const currentParams = new URLSearchParams(window.location.search);
@@ -2115,7 +2115,7 @@
                             window.location.href = nextPage;
                         }
                     } else if (document.getElementById('game-message').style.display === 'block' && 
-                              document.getElementById('message-title').textContent === 'Metaverse Portal Detected!') {
+                              document.getElementById('message-title').textContent === 'Vibeverse Portal Detected!') {
                         // Hide message if player moves away
                         document.getElementById('game-message').style.display = 'none';
                     }
