@@ -1262,8 +1262,10 @@
                 });
                 
                 const logoMesh = new THREE.Mesh(logoGeometry, logoMaterial);
-                logoMesh.rotation.y = Math.PI / 4; // Rotate slightly for better visibility
-                csignLogoGroup.add(logoMesh);
+                // Create a separate group for the logo and its immediate visual effects
+                const logoWithEffectsGroup = new THREE.Group();
+                logoWithEffectsGroup.add(logoMesh);
+                csignLogoGroup.add(logoWithEffectsGroup);
 
                 // Add a subtle glow effect
                 const glowGeometry = new THREE.PlaneGeometry(45, 45);
@@ -1275,8 +1277,22 @@
                 });
                 
                 const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-                glowMesh.position.z = -0.1; // Position slightly behind the logo
-                csignLogoGroup.add(glowMesh);
+                glowMesh.position.z = -0.5; // Position slightly behind the logo but not so far that rotation causes issues
+                logoWithEffectsGroup.add(glowMesh);
+
+                // Rotate the entire group with both logo and glow together
+                logoWithEffectsGroup.rotation.y = Math.PI / 4; // Rotate slightly for better visibility
+                
+                // Make logo slowly rotate
+                function animateLogoRotation() {
+                    const time = Date.now() * 0.001;
+                    
+                    // Smooth rotation of the entire logo group
+                    logoWithEffectsGroup.rotation.y = Math.PI / 4 + Math.sin(time * 0.2) * 0.1;
+                    
+                    requestAnimationFrame(animateLogoRotation);
+                }
+                animateLogoRotation();
 
                 // Create particle system for logo effect
                 const logoParticleCount = 500;
@@ -1312,7 +1328,7 @@
                 });
                 
                 const logoParticleSystem = new THREE.Points(logoParticles, logoParticleMaterial);
-                csignLogoGroup.add(logoParticleSystem);
+                logoWithEffectsGroup.add(logoParticleSystem);
                 
                 // Add the csign logo group to scene
                 scene.add(csignLogoGroup);
@@ -1340,9 +1356,6 @@
                     }
                     
                     logoParticles.attributes.position.needsUpdate = true;
-                    
-                    // Make the logo slowly rotate
-                    logoMesh.rotation.y += 0.005;
                     
                     // Make logo pulsate
                     const scale = 1 + 0.1 * Math.sin(time * 0.5);
