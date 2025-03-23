@@ -15,92 +15,6 @@
         #controls-info { position: fixed; bottom: 10px; left: 10px; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; }
         #game-message { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; background: rgba(0,0,0,0.7); border-radius: 10px; text-align: center; display: none; }
         
-        /* Virtual joystick styles */
-        #mobile-controls { 
-            position: fixed; 
-            bottom: 80px; /* Increased to avoid radar overlap */
-            left: 0; 
-            width: 100%; 
-            height: 45%; 
-            z-index: 100; 
-            display: none; 
-        }
-
-        .joystick-container { 
-            position: absolute; 
-            width: 250px; /* Increased size */
-            height: 250px; /* Increased size */
-            background-color: rgba(255, 255, 255, 0.15); 
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%; 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .joystick-thumb { 
-            position: absolute; 
-            width: 120px; /* Increased size */
-            height: 120px; /* Increased size */
-            background-color: rgba(255, 255, 255, 0.4); 
-            border: 2px solid rgba(255, 255, 255, 0.6);
-            border-radius: 50%; 
-            top: 50%; 
-            left: 50%; 
-            transform: translate(-50%, -50%); 
-        }
-
-        /* Joystick indicators */
-        .joystick-container::before {
-            content: '';
-            position: absolute;
-            width: 50px; /* Increased size */
-            height: 100px; /* Increased size */
-            border-radius: 25px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-        }
-
-        /* Vertical movement indicator for left joystick */
-        #left-joystick::before {
-            transform: rotate(90deg);
-        }
-
-        /* Forward/backward indicator for right joystick */
-        #right-joystick::before {
-            transform: rotate(0deg);
-        }
-
-        #left-joystick { 
-            left: 50%;
-            transform: translateX(-280px); /* Center from middle of screen */
-            bottom: 40px;
-        }
-
-        #right-joystick { 
-            right: 50%;
-            transform: translateX(280px); /* Center from middle of screen */
-            bottom: 40px;
-        }
-
-        /* Labels for joysticks */
-        .joystick-label {
-            position: absolute;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 16px; /* Increased size */
-            text-align: center;
-            width: 100%;
-            top: -30px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        }
-        
-        #view-toggle-btn { position: absolute; top: 20px; right: 20px; width: 60px; height: 60px; background-color: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; }
-        
-        /* Media query to show mobile controls only on touch devices */
-        @media (hover: none) and (pointer: coarse) {
-            #mobile-controls { display: block; }
-            #controls-info { display: none; }
-        }
-
         /* Minimap styles */
         #minimap-container {
             position: fixed;
@@ -224,19 +138,6 @@
         <p id="message-text">Press Space to continue</p>
     </div>
 
-    <!-- Mobile controls -->
-    <div id="mobile-controls">
-        <div id="left-joystick" class="joystick-container">
-            <div class="joystick-label">MOVE & TURN</div>
-            <div class="joystick-thumb"></div>
-        </div>
-        <div id="right-joystick" class="joystick-container">
-            <div class="joystick-label">FORWARD / BACK</div>
-            <div class="joystick-thumb"></div>
-        </div>
-        <div id="view-toggle-btn">V</div>
-    </div>
-
     <!-- Debug overlay for tracking control state -->
     <div id="debug-overlay"></div>
 
@@ -329,9 +230,6 @@
                     if (webglStatus.supported) {
                         try {
                             initGame();
-                            
-                            // Initialize joystick positions after game is loaded
-                            setTimeout(initJoystickPositions, 500);
                         } catch (error) {
                             console.error("Error initializing 3D game:", error);
                             document.getElementById('fallback-container').style.display = 'flex';
@@ -359,9 +257,6 @@
                 if (webglStatus.supported) {
                     try {
                         initGame();
-                        
-                        // Initialize joystick positions after game is loaded
-                        setTimeout(initJoystickPositions, 500);
                     } catch (error) {
                         console.error("Error initializing 3D game:", error);
                         document.getElementById('fallback-container').style.display = 'flex';
@@ -755,10 +650,6 @@
                 transparent: true,
                 opacity: 0.85 // Slightly transparent to see the segments underneath
             });
-
-            // Create the body mesh but don't add it yet - we'll use it for reference only
-            // const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
-            // fish.object.add(bodyMesh);
 
             // Create fish fins with more organic shapes
             // Create a custom fin shape using a curve
@@ -1244,7 +1135,6 @@
                 requestAnimationFrame(animateExitPortal);
             }
             animateExitPortal();
-            // </create exit portal>
 
             // Create csign logo
             function createCsignLogo() {
@@ -1356,45 +1246,6 @@
                 if (keys.hasOwnProperty(e.key)) {
                     keys[e.key] = false;
                 }
-            });
-            
-            // Handle touch for mobile
-            let touchStartX = 0;
-            let touchStartY = 0;
-            
-            document.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-            });
-            
-            document.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                const touchX = e.touches[0].clientX;
-                const touchY = e.touches[0].clientY;
-                
-                // Calculate direction based on touch movement
-                if (touchX < touchStartX - 20) keys.ArrowLeft = true;
-                else if (touchX > touchStartX + 20) keys.ArrowRight = true;
-                else {
-                    keys.ArrowLeft = false;
-                    keys.ArrowRight = false;
-                }
-                
-                if (touchY < touchStartY - 20) keys.ArrowUp = true;
-                else if (touchY > touchStartY + 20) keys.ArrowDown = true;
-                else {
-                    keys.ArrowUp = false;
-                    keys.ArrowDown = false;
-                }
-            });
-            
-            document.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                keys.ArrowUp = false;
-                keys.ArrowDown = false;
-                keys.ArrowLeft = false;
-                keys.ArrowRight = false;
             });
 
             // Game functions
@@ -2012,9 +1863,6 @@
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
-                
-                // Update joystick positions on resize
-                initJoystickPositions();
             });
             
             // Update UI
@@ -2330,21 +2178,6 @@
                 }
             });
             
-            // Handle touch for mobile
-            // Use the same joystick implementation for 2D fallback
-            canvas.addEventListener('touchstart', handleJoystickTouch, { passive: false });
-            canvas.addEventListener('touchmove', handleJoystickTouch, { passive: false });
-            canvas.addEventListener('touchend', handleJoystickTouch, { passive: false });
-            canvas.addEventListener('touchcancel', handleJoystickTouch, { passive: false });
-            
-            // Add view toggle button for 2D mode as well
-            document.getElementById('view-toggle-btn').addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if (!gameOver && !gameWon) {
-                    fish.viewMode = fish.viewMode === 'first' ? 'third' : 'first';
-                }
-            });
-            
             // Game loop for 2D fallback
             function gameLoop2D() {
                 // Game logic and rendering for 2D fallback
@@ -2354,290 +2187,6 @@
             
             // Start the 2D game loop
             gameLoop2D();
-        }
-
-        // Handle touch for mobile
-        // Virtual joystick implementation
-        const joysticks = {
-            left: {
-                active: false,
-                container: document.getElementById('left-joystick'),
-                thumb: document.getElementById('left-joystick').querySelector('.joystick-thumb'),
-                centerX: 0,
-                centerY: 0,
-                currentX: 0,
-                currentY: 0,
-                maxDistance: 40,
-                verticalAxis: 0,
-                horizontalAxis: 0,
-                touchId: null // Add touch identifier tracking
-            },
-            right: {
-                active: false,
-                container: document.getElementById('right-joystick'),
-                thumb: document.getElementById('right-joystick').querySelector('.joystick-thumb'),
-                centerX: 0,
-                centerY: 0,
-                currentX: 0,
-                currentY: 0,
-                maxDistance: 40,
-                verticalAxis: 0,
-                horizontalAxis: 0,
-                touchId: null // Add touch identifier tracking
-            }
-        };
-        
-        // Initialize joystick centers
-        function initJoystickPositions() {
-            ['left', 'right'].forEach(side => {
-                const joystick = joysticks[side];
-                const rect = joystick.container.getBoundingClientRect();
-                joystick.centerX = rect.width / 2;
-                joystick.centerY = rect.height / 2;
-                
-                // Reset joystick values
-                joystick.active = false; 
-                joystick.touchId = null;
-                joystick.horizontalAxis = 0;
-                joystick.verticalAxis = 0;
-                joystick.thumb.style.transform = 'translate(-50%, -50%)';
-                joystick.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
-                
-                // Increase max distance for better control range
-                joystick.maxDistance = Math.min(rect.width, rect.height) * 0.45;
-                
-                // Add larger initial maxDistance for right joystick for more sensitive forward/backward control
-                if (side === 'right') {
-                    joystick.maxDistance = Math.min(rect.width, rect.height) * 0.48;
-                }
-            });
-            
-            // Make right joystick's purpose clearer with improved label
-            const leftLabel = document.querySelector('#left-joystick .joystick-label');
-            const rightLabel = document.querySelector('#right-joystick .joystick-label');
-            
-            if (leftLabel) leftLabel.innerHTML = 'MOVE UP/DOWN<br>TURN LEFT/RIGHT';
-            if (rightLabel) rightLabel.innerHTML = '⬆️ FORWARD (F)<br>⬇️ REVERSE (R)';
-            
-            // Update debug overlay if available
-            if (typeof updateDebugOverlay === 'function') {
-                updateDebugOverlay();
-            }
-        }
-        
-        // Only add touch listeners to the mobile controls container
-        document.getElementById('mobile-controls').addEventListener('touchstart', handleJoystickTouch, { passive: false });
-        document.getElementById('mobile-controls').addEventListener('touchmove', handleJoystickTouch, { passive: false });
-        document.getElementById('mobile-controls').addEventListener('touchend', handleJoystickTouch, { passive: false });
-        document.getElementById('mobile-controls').addEventListener('touchcancel', handleJoystickTouch, { passive: false });
-        
-        // Add view toggle button functionality
-        document.getElementById('view-toggle-btn').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (!gameState.gameOver && !gameState.gameWon) {
-                gameState.viewMode = gameState.viewMode === 'first' ? 'third' : 'first';
-                document.getElementById('view-mode-text').textContent = gameState.viewMode.toUpperCase() + ' PERSON';
-            }
-        });
-        
-        // Add touch event listener to game message for mobile users
-        document.getElementById('game-message').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            // Simulate space key press
-            if (gameState.gameOver || gameState.gameWon) {
-                resetGame();
-            } else if (gameState.goalReached) {
-                nextLevel();
-            }
-        });
-        
-        // Handle joystick touch events
-        function handleJoystickTouch(e) {
-            e.preventDefault();
-            
-            // Handle touch end/cancel
-            if (e.type === 'touchend' || e.type === 'touchcancel') {
-                // Find touches that were removed
-                const activeTouches = Array.from(e.touches);
-                ['left', 'right'].forEach(side => {
-                    const joystick = joysticks[side];
-                    if (joystick.touchId !== null && !activeTouches.find(touch => touch.identifier === joystick.touchId)) {
-                        resetJoystick(side);
-                    }
-                });
-                return;
-            }
-            
-            // Flag to track if any touch is within a joystick
-            let touchHandled = false;
-            
-            // Handle each touch
-            Array.from(e.touches).forEach(touch => {
-                const touchX = touch.clientX;
-                const touchY = touch.clientY;
-                
-                ['left', 'right'].forEach(side => {
-                    const joystick = joysticks[side];
-                    const rect = joystick.container.getBoundingClientRect();
-                    
-                    // Check if this touch is within this joystick's bounds
-                    if (touchX >= rect.left && touchX <= rect.right && 
-                        touchY >= rect.top && touchY <= rect.bottom) {
-                        
-                        touchHandled = true; // This touch is within a joystick area
-                        
-                        // If this joystick isn't active or this is the touch controlling it
-                        if (!joystick.active || joystick.touchId === touch.identifier) {
-                            joystick.active = true;
-                            joystick.touchId = touch.identifier;
-                            
-                            // Calculate position relative to joystick container
-                            joystick.currentX = touchX - rect.left;
-                            joystick.currentY = touchY - rect.top;
-                            updateJoystickPosition(side);
-                        }
-                    }
-                });
-            });
-            
-            // Update game controls based on joystick positions
-            if (touchHandled) {
-                updateGameControlsFromJoysticks();
-            }
-        }
-        
-        function updateJoystickPosition(joystickId) {
-            const joystick = joysticks[joystickId];
-            
-            // Calculate distance from center
-            const deltaX = joystick.currentX - joystick.centerX;
-            const deltaY = joystick.currentY - joystick.centerY;
-            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            
-            if (distance === 0) {
-                joystick.horizontalAxis = 0;
-                joystick.verticalAxis = 0;
-                joystick.thumb.style.transform = 'translate(-50%, -50%)';
-                return;
-            }
-            
-            // Limit distance to max radius
-            const actualDistance = Math.min(distance, joystick.maxDistance);
-            const scale = actualDistance / distance;
-            
-            // Calculate normalized position
-            let normalizedX = deltaX * scale;
-            let normalizedY = deltaY * scale;
-            
-            if (joystickId === 'right') {
-                // RIGHT JOYSTICK: FORWARD/BACKWARD ONLY
-                
-                // Move thumb only in vertical direction
-                joystick.thumb.style.transform = `translate(-50%, calc(-50% + ${normalizedY}px))`;
-                
-                // Use only vertical component for controls, ensure horizontal is 0
-                joystick.horizontalAxis = 0;
-                
-                // Calculate vertical axis (-1 to 1), negate for intuitive controls
-                // (Up = forward = positive, Down = backward = negative)
-                // Apply extra sensitivity for better control
-                joystick.verticalAxis = -normalizedY / joystick.maxDistance * 1.5;
-                
-                // Clamp to valid range (-1 to 1)
-                joystick.verticalAxis = Math.max(-1, Math.min(1, joystick.verticalAxis));
-            } else {
-                // LEFT JOYSTICK: DIRECTIONAL MOVEMENT
-                
-                // Move thumb in both directions
-                joystick.thumb.style.transform = `translate(calc(-50% + ${normalizedX}px), calc(-50% + ${normalizedY}px))`;
-                
-                // Set horizontal and vertical axes
-                joystick.horizontalAxis = normalizedX / joystick.maxDistance;
-                joystick.verticalAxis = normalizedY / joystick.maxDistance;
-            }
-        }
-
-        function resetJoystick(joystickId) {
-            const joystick = joysticks[joystickId];
-            joystick.active = false;
-            joystick.touchId = null;
-            joystick.horizontalAxis = 0;
-            joystick.verticalAxis = 0;
-            joystick.thumb.style.transform = 'translate(-50%, -50%)';
-            joystick.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
-        }
-
-        function updateGameControlsFromJoysticks() {
-            // Left joystick controls vertical movement (up/down) and turning (left/right)
-            if (joysticks.left.active) {
-                keys.ArrowUp = joysticks.left.verticalAxis < -0.3;
-                keys.ArrowDown = joysticks.left.verticalAxis > 0.3;
-                keys.ArrowLeft = joysticks.left.horizontalAxis < -0.3;
-                keys.ArrowRight = joysticks.left.horizontalAxis > 0.3;
-            } else {
-                keys.ArrowUp = false;
-                keys.ArrowDown = false;
-                keys.ArrowLeft = false;
-                keys.ArrowRight = false;
-            }
-            
-            // Right joystick controls forward/backward movement
-            if (joysticks.right.active) {
-                const verticalValue = joysticks.right.verticalAxis;
-                
-                // With inverted Y-axis in updateJoystickPosition:
-                // Positive values = forward (pushing up), negative values = backward (pushing down)
-                // Lower the threshold for better responsiveness
-                keys.f = verticalValue > 0.05;  // Forward (pushing up)
-                keys.r = verticalValue < -0.05; // Backward (pushing down)
-                
-                // Add visible debug info
-                const debugInfo = document.getElementById('joystick-debug') || document.createElement('div');
-                if (!document.getElementById('joystick-debug')) {
-                    debugInfo.id = 'joystick-debug';
-                    debugInfo.style.position = 'fixed';
-                    debugInfo.style.top = '50%';
-                    debugInfo.style.left = '50%';
-                    debugInfo.style.transform = 'translate(-50%, -50%)';
-                    debugInfo.style.background = 'rgba(0,0,0,0.7)';
-                    debugInfo.style.color = 'white';
-                    debugInfo.style.padding = '20px';
-                    debugInfo.style.borderRadius = '10px';
-                    debugInfo.style.fontFamily = 'Arial, sans-serif';
-                    debugInfo.style.fontSize = '24px';
-                    debugInfo.style.zIndex = '9999';
-                    document.body.appendChild(debugInfo);
-                }
-                
-                // Show debug information
-                debugInfo.innerHTML = `
-                    RIGHT JOYSTICK:<br>
-                    Value: ${verticalValue.toFixed(2)}<br>
-                    Forward: ${keys.f ? 'ON' : 'OFF'}<br>
-                    Backward: ${keys.r ? 'ON' : 'OFF'}
-                `;
-                
-                // Visual feedback for forward/backward movement
-                if (keys.f) {
-                    joysticks.right.thumb.style.backgroundColor = 'rgba(0, 255, 128, 0.6)'; // Green for forward
-                } else if (keys.r) {
-                    joysticks.right.thumb.style.backgroundColor = 'rgba(255, 128, 0, 0.6)'; // Orange for backward
-                } else {
-                    joysticks.right.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)'; // Default color
-                }
-            } else {
-                keys.f = false;
-                keys.r = false;
-                if (joysticks.right.thumb) {
-                    joysticks.right.thumb.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
-                }
-                
-                // Hide debug info when inactive
-                const debugInfo = document.getElementById('joystick-debug');
-                if (debugInfo) {
-                    debugInfo.remove();
-                }
-            }
         }
 
         // Create game world
