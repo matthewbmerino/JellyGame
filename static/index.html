@@ -1250,11 +1250,17 @@
             function createCsignLogo() {
                 // Create group for the csign logo
                 const csignLogoGroup = new THREE.Group();
-                csignLogoGroup.position.set(100, 20, 200); // Position it at a visible location in the game
+                csignLogoGroup.position.set(-180, 20, -280); // Position near the vibeverse portal
 
-                // Create a plane for the logo
-                const logoGeometry = new THREE.PlaneGeometry(40, 40);
+                // Create a separate group for the logo and its immediate visual effects
+                const logoWithEffectsGroup = new THREE.Group();
+                csignLogoGroup.add(logoWithEffectsGroup);
+
+                // Create a plane for the logo using its natural dimensions
+                const logoGeometry = new THREE.PlaneGeometry(20, 20);
                 const logoTexture = new THREE.TextureLoader().load('csign_logo.png');
+                // Preserve aspect ratio and prevent distortion
+                logoTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
                 const logoMaterial = new THREE.MeshBasicMaterial({
                     map: logoTexture,
                     transparent: true,
@@ -1262,13 +1268,10 @@
                 });
                 
                 const logoMesh = new THREE.Mesh(logoGeometry, logoMaterial);
-                // Create a separate group for the logo and its immediate visual effects
-                const logoWithEffectsGroup = new THREE.Group();
                 logoWithEffectsGroup.add(logoMesh);
-                csignLogoGroup.add(logoWithEffectsGroup);
 
-                // Add a subtle glow effect
-                const glowGeometry = new THREE.PlaneGeometry(45, 45);
+                // Add a subtle glow effect - rectangle matching logo dimensions
+                const glowGeometry = new THREE.PlaneGeometry(22, 22);
                 const glowMaterial = new THREE.MeshBasicMaterial({
                     color: 0x0088ff,
                     transparent: true,
@@ -1277,49 +1280,61 @@
                 });
                 
                 const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-                glowMesh.position.z = -0.5; // Position slightly behind the logo but not so far that rotation causes issues
+                glowMesh.position.z = -0.2; // Position slightly behind the logo
                 logoWithEffectsGroup.add(glowMesh);
 
-                // Rotate the entire group with both logo and glow together
-                logoWithEffectsGroup.rotation.y = Math.PI / 4; // Rotate slightly for better visibility
+                // Create orbital ring for particles to follow
+                const ringGeometry = new THREE.RingGeometry(24, 25, 32);
+                const ringMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x0088ff, 
+                    transparent: true,
+                    opacity: 0.3,
+                    side: THREE.DoubleSide
+                });
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                ring.rotation.x = Math.PI / 2; // Make ring flat (horizontal)
+                logoWithEffectsGroup.add(ring);
+
+                // Rotate the entire group
+                logoWithEffectsGroup.rotation.y = Math.PI / 2; // Face toward player path
                 
                 // Make logo slowly rotate
                 function animateLogoRotation() {
                     const time = Date.now() * 0.001;
                     
-                    // Smooth rotation of the entire logo group
-                    logoWithEffectsGroup.rotation.y = Math.PI / 4 + Math.sin(time * 0.2) * 0.1;
+                    // Subtle oscillation
+                    logoWithEffectsGroup.rotation.y = Math.PI / 2 + Math.sin(time * 0.2) * 0.05;
                     
                     requestAnimationFrame(animateLogoRotation);
                 }
                 animateLogoRotation();
 
                 // Create particle system for logo effect
-                const logoParticleCount = 500;
+                const logoParticleCount = 200; // Reduced count for cleaner effect
                 const logoParticles = new THREE.BufferGeometry();
                 const logoPositions = new Float32Array(logoParticleCount * 3);
                 const logoColors = new Float32Array(logoParticleCount * 3);
                 
                 for (let i = 0; i < logoParticleCount * 3; i += 3) {
-                    // Create particles in a circle around the logo
+                    // Create particles in a ring around the logo
                     const angle = Math.random() * Math.PI * 2;
-                    const radius = 20 + Math.random() * 5;
+                    const radius = 24.5; // Fixed radius to follow the ring
                     
                     logoPositions[i] = Math.cos(angle) * radius;
                     logoPositions[i + 1] = Math.sin(angle) * radius;
-                    logoPositions[i + 2] = (Math.random() - 0.5) * 4;
+                    logoPositions[i + 2] = (Math.random() - 0.5) * 1; // Much smaller Z variation
                     
-                    // Blue colors
+                    // Consistent blue colors
                     logoColors[i] = 0;
-                    logoColors[i + 1] = 0.5 + Math.random() * 0.5;
-                    logoColors[i + 2] = 0.8 + Math.random() * 0.2;
+                    logoColors[i + 1] = 0.6 + Math.random() * 0.3;
+                    logoColors[i + 2] = 0.9 + Math.random() * 0.1;
                 }
                 
                 logoParticles.setAttribute('position', new THREE.BufferAttribute(logoPositions, 3));
                 logoParticles.setAttribute('color', new THREE.BufferAttribute(logoColors, 3));
                 
                 const logoParticleMaterial = new THREE.PointsMaterial({
-                    size: 0.5,
+                    size: 0.4,
                     vertexColors: true,
                     blending: THREE.AdditiveBlending,
                     transparent: true,
@@ -1346,20 +1361,23 @@
                         const iy = i + 1;
                         const iz = i + 2;
                         
-                        // Circular motion with some randomness
-                        const angle = time + i * 0.01;
-                        const radius = 20 + Math.sin(time * 0.5 + i * 0.01) * 5;
+                        // Circular orbital motion with consistent radius
+                        const particleIndex = i / 3;
+                        const particleSpeed = 0.3 + (particleIndex % 5) * 0.1; // Varied speeds
+                        const angle = time * particleSpeed + particleIndex * 0.2;
+                        const radius = 24.5; // Fixed radius for clean orbit
                         
                         positions[ix] = Math.cos(angle) * radius;
                         positions[iy] = Math.sin(angle) * radius;
-                        positions[iz] = Math.sin(time + i * 0.1) * 2;
+                        // Very small z-oscillation for subtle 3D effect
+                        positions[iz] = Math.sin(time * 0.2 + particleIndex) * 0.3;
                     }
                     
                     logoParticles.attributes.position.needsUpdate = true;
                     
-                    // Make logo pulsate
-                    const scale = 1 + 0.1 * Math.sin(time * 0.5);
-                    glowMesh.scale.set(scale, scale, scale);
+                    // Make glow pulsate subtly
+                    const scale = 1 + 0.05 * Math.sin(time * 0.5);
+                    glowMesh.scale.set(scale, scale, 1);
                     
                     requestAnimationFrame(animateCsignLogo);
                 }
