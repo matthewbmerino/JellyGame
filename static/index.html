@@ -95,56 +95,48 @@
         /* Mobile joystick styles */
         .joystick-container {
             position: fixed;
-            width: 480px; /* 4x larger from 120px */
-            height: 480px; /* 4x larger from 120px */
-            background-color: rgba(255, 255, 255, 0.2); /* Changed to white transparent */
-            border: 2px solid rgba(255, 255, 255, 0.3); /* Changed to white transparent */
+            width: 240px; /* Half size from 480px */
+            height: 240px; /* Half size from 480px */
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             display: none; /* Hidden by default, shown on mobile */
             touch-action: none;
             z-index: 1000;
+            bottom: 30px; /* Position at bottom */
         }
         
         #vertical-joystick {
-            bottom: 50%;
-            left: 50%;
-            transform: translate(-50%, 50%);
-            margin-left: -270px; /* Offset to left of center */
+            left: 25%; /* Position left joystick centered in left half */
+            transform: translateX(-50%);
         }
         
         #horizontal-joystick {
-            bottom: 50%;
-            left: 50%;
-            transform: translate(-50%, 50%);
-            margin-left: 270px; /* Offset to right of center */
+            left: 75%; /* Position right joystick centered in right half */
+            transform: translateX(-50%);
         }
         
         .joystick-knob {
             position: absolute;
-            width: 200px; /* 4x larger from 50px */
-            height: 200px; /* 4x larger from 50px */
-            background-color: rgba(255, 255, 255, 0.4); /* Changed to white transparent */
-            border: 2px solid rgba(255, 255, 255, 0.6); /* Changed to white transparent */
+            width: 100px; /* Half size from 200px */
+            height: 100px; /* Half size from 200px */
+            background-color: rgba(255, 255, 255, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.6);
             border-radius: 50%;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.4); /* Added glow effect */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 80px;
-            color: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
         }
         
         .joystick-label {
             position: absolute;
             width: 100%;
             text-align: center;
-            top: 20px; /* Position at top of joystick instead of above it */
+            top: 20px;
             color: rgba(255, 255, 255, 0.9);
-            font-size: 32px; /* Larger font */
+            font-size: 24px; /* Smaller font for the smaller joystick */
             font-weight: bold;
             text-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
             pointer-events: none;
@@ -289,7 +281,7 @@
                     active: false,
                     value: 0, // -1 to 1 (down to up)
                     startY: 0,
-                    maxDistance: 160 // Maximum distance joystick knob can move (4x from 40)
+                    maxDistance: 80 // Maximum distance joystick knob can move (half of previous 160)
                 },
                 horizontal: {
                     active: false,
@@ -297,7 +289,7 @@
                     valueY: 0, // -1 to 1 (down to up)
                     startX: 0,
                     startY: 0,
-                    maxDistance: 160 // Maximum distance joystick knob can move (4x from 40)
+                    maxDistance: 80 // Maximum distance joystick knob can move (half of previous 160)
                 }
             };
             
