@@ -460,7 +460,7 @@
                 object: new THREE.Group(),
                 speed: 0.3,
                 turnSpeed: 0.02,
-                direction: new THREE.Vector3(0, 0, -1),
+                direction: new THREE.Vector3(0, 0, -1), // Already pointing toward the goal
                 velocity: new THREE.Vector3(),
                 momentum: new THREE.Vector3(),
                 angularMomentum: 0,
@@ -476,6 +476,9 @@
                 segments: [], // Store body segments for wave animation
                 firstPersonElements: null // Will store first-person view elements
             };
+
+            // Rotate the fish object initially to face the goal (negative Z)
+            fish.object.rotation.y = Math.PI; // Rotate 180 degrees so fish model faces negative Z
 
             // Create a more realistic fish with multiple segments for fluid motion
             const fishSegmentCount = 5; // Number of body segments
@@ -1854,7 +1857,7 @@
                 
                 // Reset fish position
                 fish.object.position.set(0, 0, 0);
-                fish.object.rotation.set(0, Math.PI, 0); // Rotate 180 degrees around Y axis to face toward the goal at (0,0,-200)
+                fish.object.rotation.set(0, Math.PI, 0); // Keep fish model facing toward the goal (negative Z)
                 fish.momentum.set(0, 0, 0);
                 fish.angularMomentum = 0;
                 
