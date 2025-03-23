@@ -91,14 +91,99 @@
             z-index: 1000;
             pointer-events: none;
         }
+        
+        /* Mobile joystick styles */
+        .joystick-container {
+            position: fixed;
+            width: 120px;
+            height: 120px;
+            background-color: rgba(0, 40, 0, 0.3);
+            border: 2px solid rgba(0, 255, 0, 0.3);
+            border-radius: 50%;
+            display: none; /* Hidden by default, shown on mobile */
+            touch-action: none;
+            z-index: 1000;
+        }
+        
+        #vertical-joystick {
+            bottom: 30px;
+            left: 30px;
+        }
+        
+        #horizontal-joystick {
+            bottom: 30px;
+            right: 30px;
+        }
+        
+        .joystick-knob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background-color: rgba(0, 255, 0, 0.4);
+            border: 2px solid rgba(0, 255, 0, 0.6);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        
+        .joystick-label {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: -30px;
+            color: rgba(0, 255, 0, 0.8);
+            font-size: 14px;
+            text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+            pointer-events: none;
+        }
+        
+        @media (max-width: 800px) {
+            /* Adjust minimap position on mobile to avoid overlap with joysticks */
+            #minimap-container {
+                bottom: 160px;
+                right: 30px; /* Positioned above the right joystick */
+                width: 100px;
+                height: 100px;
+                opacity: 0.8; /* Slightly transparent */
+            }
+            
+            /* Ensure controls info is visible on mobile */
+            #controls-info {
+                display: none; /* Hide keyboard controls on mobile */
+            }
+            
+            /* Make joysticks more visible on different backgrounds */
+            .joystick-container {
+                box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+            }
+            
+            /* Adjust game message for better mobile visibility */
+            #game-message {
+                width: 80%;
+                max-width: 300px;
+                font-size: 0.9em;
+            }
+        }
     </style>
 </head>
 <body>
     <div id="mobile-warning">
         <h2>Game Optimized for Desktop</h2>
-        <p>This game is currently unavailable on mobile devices for the best experience.</p>
-        <p>Please play on desktop web browser for the full game experience.</p>
-        <button id="continue-anyway">Continue Anyway</button>
+        <p>This game is optimized for desktop but now includes touch controls for mobile devices.</p>
+        <p>Use the left joystick for up/down movement and the right joystick for turning and forward/backward movement.</p>
+        <button id="continue-anyway">Continue to Play</button>
+    </div>
+    
+    <!-- Mobile joysticks -->
+    <div id="vertical-joystick" class="joystick-container">
+        <div class="joystick-knob"></div>
+        <div class="joystick-label">VERTICAL</div>
+    </div>
+    <div id="horizontal-joystick" class="joystick-container">
+        <div class="joystick-knob"></div>
+        <div class="joystick-label">TURN & MOVE</div>
     </div>
     
     <!-- Minimap -->
@@ -160,13 +245,174 @@
             // Display mobile warning if on mobile device
             if (isMobileDevice()) {
                 document.getElementById('mobile-warning').style.display = 'flex';
+                
+                // Setup mobile joysticks
+                setupMobileControls();
             }
             
             // Add event listener for the "Continue Anyway" button
             document.getElementById('continue-anyway').addEventListener('click', function() {
                 document.getElementById('mobile-warning').style.display = 'none';
+                
+                // Show joysticks when continuing on mobile
+                if (isMobileDevice()) {
+                    document.getElementById('vertical-joystick').style.display = 'block';
+                    document.getElementById('horizontal-joystick').style.display = 'block';
+                }
             });
         });
+        
+        // Mobile joystick controls setup
+        function setupMobileControls() {
+            // Joystick elements
+            const verticalJoystick = document.getElementById('vertical-joystick');
+            const verticalKnob = verticalJoystick.querySelector('.joystick-knob');
+            const horizontalJoystick = document.getElementById('horizontal-joystick');
+            const horizontalKnob = horizontalJoystick.querySelector('.joystick-knob');
+            
+            // Joystick state variables
+            const joystickState = {
+                vertical: {
+                    active: false,
+                    value: 0, // -1 to 1 (down to up)
+                    startY: 0,
+                    maxDistance: 40 // Maximum distance joystick knob can move
+                },
+                horizontal: {
+                    active: false,
+                    valueX: 0, // -1 to 1 (left to right)
+                    valueY: 0, // -1 to 1 (down to up)
+                    startX: 0,
+                    startY: 0,
+                    maxDistance: 40
+                }
+            };
+            
+            // Handle vertical joystick (up/down)
+            verticalJoystick.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                joystickState.vertical.active = true;
+                joystickState.vertical.startY = e.touches[0].clientY;
+            });
+            
+            verticalJoystick.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                if (joystickState.vertical.active) {
+                    const touch = e.touches[0];
+                    const rect = verticalJoystick.getBoundingClientRect();
+                    
+                    // Calculate center of joystick
+                    const centerY = rect.top + rect.height / 2;
+                    
+                    // Calculate distance from center (limit to max distance)
+                    let deltaY = touch.clientY - centerY;
+                    const distance = Math.min(Math.abs(deltaY), joystickState.vertical.maxDistance);
+                    
+                    // Normalize to -1 to 1
+                    joystickState.vertical.value = -(distance / joystickState.vertical.maxDistance) * Math.sign(deltaY);
+                    
+                    // Update knob position
+                    const knobY = joystickState.vertical.value * joystickState.vertical.maxDistance;
+                    verticalKnob.style.transform = `translate(-50%, calc(-50% + ${knobY}px))`;
+                    
+                    // Update keys based on joystick values
+                    keys.ArrowUp = joystickState.vertical.value < -0.3;
+                    keys.ArrowDown = joystickState.vertical.value > 0.3;
+                }
+            });
+            
+            verticalJoystick.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                joystickState.vertical.active = false;
+                joystickState.vertical.value = 0;
+                verticalKnob.style.transform = 'translate(-50%, -50%)';
+                
+                // Reset keys
+                keys.ArrowUp = false;
+                keys.ArrowDown = false;
+            });
+            
+            // Handle horizontal joystick (turn left/right and forward/backward)
+            horizontalJoystick.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                joystickState.horizontal.active = true;
+                const touch = e.touches[0];
+                const rect = horizontalJoystick.getBoundingClientRect();
+                joystickState.horizontal.startX = touch.clientX;
+                joystickState.horizontal.startY = touch.clientY;
+            });
+            
+            horizontalJoystick.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                if (joystickState.horizontal.active) {
+                    const touch = e.touches[0];
+                    const rect = horizontalJoystick.getBoundingClientRect();
+                    
+                    // Calculate center of joystick
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    
+                    // Calculate distance from center (limit to max distance)
+                    let deltaX = touch.clientX - centerX;
+                    let deltaY = touch.clientY - centerY;
+                    
+                    // Calculate distance from center
+                    const distance = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY), joystickState.horizontal.maxDistance);
+                    
+                    // Calculate angle
+                    const angle = Math.atan2(deltaY, deltaX);
+                    
+                    // Calculate new position based on angle and clamped distance
+                    const newX = Math.cos(angle) * distance;
+                    const newY = Math.sin(angle) * distance;
+                    
+                    // Normalize to -1 to 1
+                    joystickState.horizontal.valueX = newX / joystickState.horizontal.maxDistance;
+                    joystickState.horizontal.valueY = newY / joystickState.horizontal.maxDistance;
+                    
+                    // Update knob position
+                    horizontalKnob.style.transform = `translate(calc(-50% + ${newX}px), calc(-50% + ${newY}px))`;
+                    
+                    // Update keys based on joystick values
+                    keys.ArrowLeft = joystickState.horizontal.valueX < -0.3;
+                    keys.ArrowRight = joystickState.horizontal.valueX > 0.3;
+                    keys.f = joystickState.horizontal.valueY < -0.3;
+                    keys.r = joystickState.horizontal.valueY > 0.3;
+                }
+            });
+            
+            horizontalJoystick.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                joystickState.horizontal.active = false;
+                joystickState.horizontal.valueX = 0;
+                joystickState.horizontal.valueY = 0;
+                horizontalKnob.style.transform = 'translate(-50%, -50%)';
+                
+                // Reset keys
+                keys.ArrowLeft = false;
+                keys.ArrowRight = false;
+                keys.f = false;
+                keys.r = false;
+            });
+            
+            // Update debug overlay with joystick status if needed
+            function updateDebugOverlay() {
+                const debugOverlay = document.getElementById('debug-overlay');
+                if (debugOverlay) {
+                    debugOverlay.innerHTML = `
+                        Vertical: ${joystickState.vertical.value.toFixed(2)}<br>
+                        Horizontal X: ${joystickState.horizontal.valueX.toFixed(2)}<br>
+                        Horizontal Y: ${joystickState.horizontal.valueY.toFixed(2)}<br>
+                        Keys: Up=${keys.ArrowUp}, Down=${keys.ArrowDown}, Left=${keys.ArrowLeft}, Right=${keys.ArrowRight}, F=${keys.f}, R=${keys.r}
+                    `;
+                }
+                
+                requestAnimationFrame(updateDebugOverlay);
+            }
+            
+            // Uncomment to enable debug overlay
+            // updateDebugOverlay();
+        }
         
         // Rest of script content...
 
