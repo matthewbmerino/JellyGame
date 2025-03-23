@@ -460,7 +460,7 @@
                 object: new THREE.Group(),
                 speed: 0.3,
                 turnSpeed: 0.02,
-                direction: new THREE.Vector3(0, 0, -1), // Already pointing toward the goal
+                direction: new THREE.Vector3(0, 0, 1), // Point toward positive Z axis
                 velocity: new THREE.Vector3(),
                 momentum: new THREE.Vector3(),
                 angularMomentum: 0,
@@ -478,7 +478,7 @@
             };
 
             // Rotate the fish object initially to face the goal (negative Z)
-            fish.object.rotation.y = Math.PI; // Rotate 180 degrees to turn the fish around
+            fish.object.rotation.y = 0; // Fish already faces positive Z by default
 
             // Create a more realistic fish with multiple segments for fluid motion
             const fishSegmentCount = 5; // Number of body segments
@@ -682,26 +682,20 @@
             const dorsalFinGeometry = new THREE.ShapeGeometry(dorsalFinShape);
             const dorsalFin = new THREE.Mesh(dorsalFinGeometry, finMaterial);
             dorsalFin.position.set(0, fishHeight * 1.1, -fishLength * 0.2);
-            dorsalFin.rotation.y = Math.PI / 2;
-            // Remove the extra rotation
-            // dorsalFin.rotation.y += Math.PI;
+            dorsalFin.rotation.y = -Math.PI / 2;
             fish.object.add(dorsalFin);
 
             // Side fins
             const leftFin = new THREE.Mesh(finGeometry, finMaterial);
             leftFin.position.set(fishWidth * 1.1, 0, fishLength * 0.2);
             leftFin.rotation.z = Math.PI / 4;
-            leftFin.rotation.y = -Math.PI / 6;
-            // Remove the extra rotation
-            // leftFin.rotation.y += Math.PI;
+            leftFin.rotation.y = Math.PI / 6;
             fish.object.add(leftFin);
 
             const rightFin = new THREE.Mesh(finGeometry, finMaterial);
             rightFin.position.set(-fishWidth * 1.1, 0, fishLength * 0.2);
             rightFin.rotation.z = -Math.PI / 4;
-            rightFin.rotation.y = Math.PI / 6;
-            // Remove the extra rotation
-            // rightFin.rotation.y += Math.PI;
+            rightFin.rotation.y = -Math.PI / 6;
             fish.object.add(rightFin);
 
             // Add a small anal fin at the bottom
@@ -715,7 +709,7 @@
             const analFin = new THREE.Mesh(analFinGeometry, finMaterial);
             analFin.position.set(0, -fishHeight * 0.8, -fishLength * 0.3);
             // Set original rotation
-            analFin.rotation.y = Math.PI / 2;
+            analFin.rotation.y = -Math.PI / 2;
             fish.object.add(analFin);
 
             // Add fish to scene
@@ -1318,7 +1312,7 @@
                 fish.object.rotation.y += fish.angularMomentum;
                 
                 // Update direction vector based on rotation
-                fish.direction.set(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), fish.object.rotation.y);
+                fish.direction.set(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), fish.object.rotation.y);
                 
                 // Calculate acceleration based on input
                 const acceleration = new THREE.Vector3(0, 0, 0);
@@ -1867,7 +1861,7 @@
                 
                 // Reset fish position
                 fish.object.position.set(0, 0, 0);
-                fish.object.rotation.set(0, Math.PI, 0); // Apply 180-degree rotation around Y axis
+                fish.object.rotation.set(0, 0, 0); // Reset to default orientation (facing positive Z)
                 fish.momentum.set(0, 0, 0);
                 fish.angularMomentum = 0;
                 
