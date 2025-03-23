@@ -460,7 +460,7 @@
                 object: new THREE.Group(),
                 speed: 0.3,
                 turnSpeed: 0.02,
-                direction: new THREE.Vector3(0, 0, 1), // Point toward positive Z axis
+                direction: new THREE.Vector3(0, 0, -1), // Point toward negative Z axis (toward the rings)
                 velocity: new THREE.Vector3(),
                 momentum: new THREE.Vector3(),
                 angularMomentum: 0,
@@ -478,7 +478,7 @@
             };
 
             // Rotate the fish object initially to face the goal (negative Z)
-            fish.object.rotation.y = 0; // Fish already faces positive Z by default
+            fish.object.rotation.y = Math.PI; // Rotate 180 degrees to face negative Z (toward the rings)
 
             // Create a more realistic fish with multiple segments for fluid motion
             const fishSegmentCount = 5; // Number of body segments
@@ -1861,7 +1861,7 @@
                 
                 // Reset fish position
                 fish.object.position.set(0, 0, 0);
-                fish.object.rotation.set(0, 0, 0); // Reset to default orientation (facing positive Z)
+                fish.object.rotation.set(0, Math.PI, 0); // Reset to orientation facing negative Z (toward the goal)
                 fish.momentum.set(0, 0, 0);
                 fish.angularMomentum = 0;
                 
