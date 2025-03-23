@@ -975,6 +975,36 @@
                 const startPortalInner = new THREE.Mesh(startPortalInnerGeometry, startPortalInnerMaterial);
                 startPortalGroup.add(startPortalInner);
 
+                // Add portal label
+                const startPortalLabelCanvas = document.createElement('canvas');
+                const startPortalContext = startPortalLabelCanvas.getContext('2d');
+                startPortalLabelCanvas.width = 512; // Increased width
+                startPortalLabelCanvas.height = 64;
+                startPortalContext.fillStyle = '#ff0000';
+                startPortalContext.font = 'bold 32px Arial';
+                startPortalContext.textAlign = 'center';
+                startPortalContext.fillText('FINISH LEVEL 1', startPortalLabelCanvas.width/2, startPortalLabelCanvas.height/2);
+                const startPortalTexture = new THREE.CanvasTexture(startPortalLabelCanvas);
+                const startLabelGeometry = new THREE.PlaneGeometry(30, 5); // Increased width
+                const startLabelMaterial = new THREE.MeshBasicMaterial({
+                    map: startPortalTexture,
+                    transparent: true,
+                    side: THREE.DoubleSide
+                });
+                const startPortalLabel = new THREE.Mesh(startLabelGeometry, startLabelMaterial);
+                startPortalLabel.position.y = 20;
+                startPortalGroup.add(startPortalLabel);
+
+                // Function to update the start portal label with current level
+                function updateStartPortalLabel() {
+                    startPortalContext.clearRect(0, 0, startPortalLabelCanvas.width, startPortalLabelCanvas.height);
+                    startPortalContext.fillStyle = '#ff0000';
+                    startPortalContext.font = 'bold 32px Arial';
+                    startPortalContext.textAlign = 'center';
+                    startPortalContext.fillText(`FINISH LEVEL ${gameState.level}`, startPortalLabelCanvas.width/2, startPortalLabelCanvas.height/2);
+                    startPortalTexture.needsUpdate = true;
+                }
+
                 // Create particle system for portal effect
                 const startPortalParticleCount = 1000;
                 const startPortalParticles = new THREE.BufferGeometry();
@@ -1802,6 +1832,7 @@
                 
                 // Update UI
                 document.getElementById('level').textContent = gameState.level;
+                updateStartPortalLabel();
             }
             
             function resetGame() {
@@ -1856,6 +1887,7 @@
                 // Update UI
                 document.getElementById('score').textContent = gameState.score;
                 document.getElementById('level').textContent = gameState.level;
+                updateStartPortalLabel();
             }
             
             // Handle window resize
@@ -2196,6 +2228,18 @@
             // The csign logo is created elsewhere
         // ... existing code ...
         }
+
+        // Add a function to update the start portal label based on current level
+        function updateStartPortalLabel() {
+            startPortalContext.clearRect(0, 0, startPortalLabelCanvas.width, startPortalLabelCanvas.height);
+            startPortalContext.fillStyle = '#ff0000';
+            startPortalContext.font = 'bold 32px Arial';
+            startPortalContext.textAlign = 'center';
+            startPortalContext.fillText(`FINISH LEVEL ${gameState.level}`, startPortalLabelCanvas.width/2, startPortalLabelCanvas.height/2);
+            startPortalTexture.needsUpdate = true;
+        }
+
+        // Create particle system for portal effect
     </script>
     <a target="_blank" href="https://jam.pieter.com" style="font-family: 'system-ui', sans-serif; position: fixed; bottom: -1px; right: -1px; padding: 7px; font-size: 14px; font-weight: bold; background: #fff; color: #000; text-decoration: none; z-index: 10; border-top-left-radius: 12px; z-index: 10000; border: 1px solid #fff;">🕹️ Vibe Jam 2025</a>
 </body>
