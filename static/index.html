@@ -1140,11 +1140,10 @@
             function createCsignLogo() {
                 // Create group for the csign logo
                 const csignLogoGroup = new THREE.Group();
-                // Position side by side with the exit portal, equidistant from the start portal
-                // Exit portal is at (-200, 20, -300), so position logo at similar distance but side by side
-                csignLogoGroup.position.set(-300, 20, -200); // Side by side with exit portal
-                // Adjust rotation to face toward center
-                csignLogoGroup.rotation.y = Math.PI / 4; // Rotate to face more toward center
+                // Position the logo on the right side (symmetrical with exit portal)
+                // Exit portal (green) is at (-200, 20, -300) on the left, start portal (red) is at (0, 0, 0) in the middle
+                // So place the logo at a symmetrical position on the right
+                csignLogoGroup.position.set(200, 20, -300); // Right side position, symmetrical to exit portal
                 
                 // First create with a placeholder - we'll adjust size once texture loads
                 const logoGeometry = new THREE.PlaneGeometry(1, 1);
@@ -1158,7 +1157,7 @@
                 
                 const logoMesh = new THREE.Mesh(logoGeometry, logoMaterial);
                 // Rotate to face toward center of game area
-                logoMesh.rotation.y = -Math.PI / 2;
+                logoMesh.rotation.y = Math.PI / 2; // Rotate to face toward center
                 csignLogoGroup.add(logoMesh);
                 
                 // Try to load texture with error handling
