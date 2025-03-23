@@ -400,6 +400,10 @@
             
             // Variable to store the start portal box for collision detection
             let startPortalBox;
+            // Variable to store exit portal box for collision detection
+            let exitPortalBox;
+            // Variable to store csign logo box for collision detection
+            let csignLogoBox;
             
             // Variable to store player name for portal transfers
             const selfUsername = "JellyFish" + Math.floor(Math.random() * 1000);
@@ -1223,7 +1227,7 @@
             scene.add(exitPortalGroup);
 
             // Create portal collision box
-            const exitPortalBox = new THREE.Box3().setFromObject(exitPortalGroup);
+            exitPortalBox = new THREE.Box3().setFromObject(exitPortalGroup);
 
             // Animate particles and portal and check for collision
             function animateExitPortal() {
@@ -1241,6 +1245,119 @@
             }
             animateExitPortal();
             // </create exit portal>
+
+            // Create csign logo
+            function createCsignLogo() {
+                // Create group for the csign logo
+                const csignLogoGroup = new THREE.Group();
+                csignLogoGroup.position.set(100, 20, 200); // Position it at a visible location in the game
+
+                // Create a plane for the logo
+                const logoGeometry = new THREE.PlaneGeometry(40, 40);
+                const logoTexture = new THREE.TextureLoader().load('csign_logo.png');
+                const logoMaterial = new THREE.MeshBasicMaterial({
+                    map: logoTexture,
+                    transparent: true,
+                    side: THREE.DoubleSide
+                });
+                
+                const logoMesh = new THREE.Mesh(logoGeometry, logoMaterial);
+                logoMesh.rotation.y = Math.PI / 4; // Rotate slightly for better visibility
+                csignLogoGroup.add(logoMesh);
+
+                // Add a subtle glow effect
+                const glowGeometry = new THREE.PlaneGeometry(45, 45);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x0088ff,
+                    transparent: true,
+                    opacity: 0.3,
+                    side: THREE.DoubleSide
+                });
+                
+                const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+                glowMesh.position.z = -0.1; // Position slightly behind the logo
+                csignLogoGroup.add(glowMesh);
+
+                // Create particle system for logo effect
+                const logoParticleCount = 500;
+                const logoParticles = new THREE.BufferGeometry();
+                const logoPositions = new Float32Array(logoParticleCount * 3);
+                const logoColors = new Float32Array(logoParticleCount * 3);
+                
+                for (let i = 0; i < logoParticleCount * 3; i += 3) {
+                    // Create particles in a circle around the logo
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = 20 + Math.random() * 5;
+                    
+                    logoPositions[i] = Math.cos(angle) * radius;
+                    logoPositions[i + 1] = Math.sin(angle) * radius;
+                    logoPositions[i + 2] = (Math.random() - 0.5) * 4;
+                    
+                    // Blue colors
+                    logoColors[i] = 0;
+                    logoColors[i + 1] = 0.5 + Math.random() * 0.5;
+                    logoColors[i + 2] = 0.8 + Math.random() * 0.2;
+                }
+                
+                logoParticles.setAttribute('position', new THREE.BufferAttribute(logoPositions, 3));
+                logoParticles.setAttribute('color', new THREE.BufferAttribute(logoColors, 3));
+                
+                const logoParticleMaterial = new THREE.PointsMaterial({
+                    size: 0.5,
+                    vertexColors: true,
+                    blending: THREE.AdditiveBlending,
+                    transparent: true,
+                    sizeAttenuation: true,
+                    map: particleTexture
+                });
+                
+                const logoParticleSystem = new THREE.Points(logoParticles, logoParticleMaterial);
+                csignLogoGroup.add(logoParticleSystem);
+                
+                // Add the csign logo group to scene
+                scene.add(csignLogoGroup);
+                
+                // Create collision box
+                csignLogoBox = new THREE.Box3().setFromObject(csignLogoGroup);
+                
+                // Animate particles
+                function animateCsignLogo() {
+                    const positions = logoParticles.attributes.position.array;
+                    const time = Date.now() * 0.001;
+                    
+                    for (let i = 0; i < positions.length; i += 3) {
+                        const ix = i;
+                        const iy = i + 1;
+                        const iz = i + 2;
+                        
+                        // Circular motion with some randomness
+                        const angle = time + i * 0.01;
+                        const radius = 20 + Math.sin(time * 0.5 + i * 0.01) * 5;
+                        
+                        positions[ix] = Math.cos(angle) * radius;
+                        positions[iy] = Math.sin(angle) * radius;
+                        positions[iz] = Math.sin(time + i * 0.1) * 2;
+                    }
+                    
+                    logoParticles.attributes.position.needsUpdate = true;
+                    
+                    // Make the logo slowly rotate
+                    logoMesh.rotation.y += 0.005;
+                    
+                    // Make logo pulsate
+                    const scale = 1 + 0.1 * Math.sin(time * 0.5);
+                    glowMesh.scale.set(scale, scale, scale);
+                    
+                    requestAnimationFrame(animateCsignLogo);
+                }
+                
+                animateCsignLogo();
+                
+                return csignLogoGroup;
+            }
+
+            // Create the csign logo
+            createCsignLogo();
 
             // Controls
             const keys = {
@@ -2119,6 +2236,31 @@
                         // Hide message if player moves away
                         document.getElementById('game-message').style.display = 'none';
                     }
+                    
+                    // Check if player is near the csign logo
+                    if (csignLogoBox) {
+                        const csignDistance = playerBox.getCenter(new THREE.Vector3()).distanceTo(csignLogoBox.getCenter(new THREE.Vector3()));
+                        if (csignDistance < 50) {
+                            // Display a hint about the csign logo
+                            const messageElement = document.getElementById('game-message');
+                            const titleElement = document.getElementById('message-title');
+                            const textElement = document.getElementById('message-text');
+                            
+                            messageElement.style.display = 'block';
+                            titleElement.textContent = 'CSign Logo Detected!';
+                            titleElement.style.color = '#0088ff';
+                            textElement.textContent = 'Swim closer to visit csign.io!';
+                            
+                            // Redirect when fish touches the logo
+                            if (playerBox.intersectsBox(csignLogoBox)) {
+                                window.location.href = 'https://csign.io';
+                            }
+                        } else if (document.getElementById('game-message').style.display === 'block' && 
+                                  document.getElementById('message-title').textContent === 'CSign Logo Detected!') {
+                            // Hide message if player moves away
+                            document.getElementById('game-message').style.display = 'none';
+                        }
+                    }
                 }
                 // </check if player has entered exit portal>
                 
@@ -2536,6 +2678,14 @@
                     debugInfo.remove();
                 }
             }
+        }
+
+        // Create game world
+        // ... existing code ...
+        function loadModels() {
+        // ... existing code ...
+            // The csign logo is created elsewhere
+        // ... existing code ...
         }
     </script>
     <a target="_blank" href="https://jam.pieter.com" style="font-family: 'system-ui', sans-serif; position: fixed; bottom: -1px; right: -1px; padding: 7px; font-size: 14px; font-weight: bold; background: #fff; color: #000; text-decoration: none; z-index: 10; border-top-left-radius: 12px; z-index: 10000; border: 1px solid #fff;">🕹️ Vibe Jam 2025</a>
