@@ -95,10 +95,10 @@
         /* Mobile joystick styles */
         .joystick-container {
             position: fixed;
-            width: 120px;
-            height: 120px;
-            background-color: rgba(0, 40, 0, 0.3);
-            border: 2px solid rgba(0, 255, 0, 0.3);
+            width: 480px; /* 4x larger from 120px */
+            height: 480px; /* 4x larger from 120px */
+            background-color: rgba(255, 255, 255, 0.2); /* Changed to white transparent */
+            border: 2px solid rgba(255, 255, 255, 0.3); /* Changed to white transparent */
             border-radius: 50%;
             display: none; /* Hidden by default, shown on mobile */
             touch-action: none;
@@ -106,44 +106,50 @@
         }
         
         #vertical-joystick {
-            bottom: 30px;
-            left: 30px;
+            bottom: 50%;
+            left: 50%;
+            transform: translate(-50%, 50%);
+            margin-left: -270px; /* Offset to left of center */
         }
         
         #horizontal-joystick {
-            bottom: 30px;
-            right: 30px;
+            bottom: 50%;
+            left: 50%;
+            transform: translate(-50%, 50%);
+            margin-left: 270px; /* Offset to right of center */
         }
         
         .joystick-knob {
             position: absolute;
-            width: 50px;
-            height: 50px;
-            background-color: rgba(0, 255, 0, 0.4);
-            border: 2px solid rgba(0, 255, 0, 0.6);
+            width: 200px; /* 4x larger from 50px */
+            height: 200px; /* 4x larger from 50px */
+            background-color: rgba(255, 255, 255, 0.4); /* Changed to white transparent */
+            border: 2px solid rgba(255, 255, 255, 0.6); /* Changed to white transparent */
             border-radius: 50%;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.4); /* Added glow effect */
         }
         
         .joystick-label {
             position: absolute;
             width: 100%;
             text-align: center;
-            top: -30px;
-            color: rgba(0, 255, 0, 0.8);
-            font-size: 14px;
-            text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+            top: 20px; /* Position at top of joystick instead of above it */
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 32px; /* Larger font */
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
             pointer-events: none;
         }
         
         @media (max-width: 800px) {
             /* Adjust minimap position on mobile to avoid overlap with joysticks */
             #minimap-container {
-                bottom: 160px;
-                right: 30px; /* Positioned above the right joystick */
+                bottom: 20px;
+                right: 20px;
                 width: 100px;
                 height: 100px;
                 opacity: 0.8; /* Slightly transparent */
@@ -156,7 +162,7 @@
             
             /* Make joysticks more visible on different backgrounds */
             .joystick-container {
-                box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+                box-shadow: 0 0 20px rgba(255, 255, 255, 0.3); /* Changed to white */
             }
             
             /* Adjust game message for better mobile visibility */
@@ -179,11 +185,11 @@
     <!-- Mobile joysticks -->
     <div id="vertical-joystick" class="joystick-container">
         <div class="joystick-knob"></div>
-        <div class="joystick-label">VERTICAL</div>
+        <div class="joystick-label">UP/DOWN</div>
     </div>
     <div id="horizontal-joystick" class="joystick-container">
         <div class="joystick-knob"></div>
-        <div class="joystick-label">TURN & MOVE</div>
+        <div class="joystick-label">STEER/MOVE</div>
     </div>
     
     <!-- Minimap -->
@@ -276,7 +282,7 @@
                     active: false,
                     value: 0, // -1 to 1 (down to up)
                     startY: 0,
-                    maxDistance: 40 // Maximum distance joystick knob can move
+                    maxDistance: 160 // Maximum distance joystick knob can move (4x from 40)
                 },
                 horizontal: {
                     active: false,
@@ -284,7 +290,7 @@
                     valueY: 0, // -1 to 1 (down to up)
                     startX: 0,
                     startY: 0,
-                    maxDistance: 40
+                    maxDistance: 160 // Maximum distance joystick knob can move (4x from 40)
                 }
             };
             
