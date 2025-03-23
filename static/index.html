@@ -1816,9 +1816,15 @@
                 const goalDistance = 200 + (gameState.level - 1) * 100;
                 const randomAngle = Math.random() * Math.PI * 2;
                 
+                // Calculate a vertical position within the fish's movement limits
+                // Fish is limited to y between -40 and 40, so we'll keep the goal within that range
+                // but still add some variation based on level
+                const maxVerticalVariation = Math.min(40, 10 + (gameState.level / 3) * 5);
+                const verticalPosition = (Math.random() * 2 - 1) * maxVerticalVariation;
+                
                 goal.object.position.set(
                     Math.cos(randomAngle) * goalDistance,
-                    (Math.random() * 2 - 1) * 40 * (gameState.level / 3), // More vertical variation in higher levels
+                    verticalPosition, // Limited vertical variation to stay within accessible range
                     Math.sin(randomAngle) * goalDistance
                 );
                 
