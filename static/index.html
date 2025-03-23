@@ -478,7 +478,7 @@
             };
 
             // Rotate the fish object initially to face the goal (negative Z)
-            // fish.object.rotation.y = Math.PI; // Removed as we're rotating individual segments instead
+            fish.object.rotation.y = Math.PI; // Rotate 180 degrees to turn the fish around
 
             // Create a more realistic fish with multiple segments for fluid motion
             const fishSegmentCount = 5; // Number of body segments
@@ -543,8 +543,8 @@
                 const overlapFactor = 0.15; // 15% overlap between segments
                 segment.position.z = -segmentPosition * fishLength * (1 - overlapFactor) + fishLength/2;
                 
-                // Rotate segment 180 degrees to flip its orientation
-                segment.rotation.y = Math.PI;
+                // Remove individual segment rotation
+                // segment.rotation.y = Math.PI;
                 
                 // Store reference to segment with additional properties for animation
                 fish.segments.push({
@@ -683,8 +683,8 @@
             const dorsalFin = new THREE.Mesh(dorsalFinGeometry, finMaterial);
             dorsalFin.position.set(0, fishHeight * 1.1, -fishLength * 0.2);
             dorsalFin.rotation.y = Math.PI / 2;
-            // Add rotation to match flipped body
-            dorsalFin.rotation.y += Math.PI;
+            // Remove the extra rotation
+            // dorsalFin.rotation.y += Math.PI;
             fish.object.add(dorsalFin);
 
             // Side fins
@@ -692,16 +692,16 @@
             leftFin.position.set(fishWidth * 1.1, 0, fishLength * 0.2);
             leftFin.rotation.z = Math.PI / 4;
             leftFin.rotation.y = -Math.PI / 6;
-            // Add rotation to match flipped body
-            leftFin.rotation.y += Math.PI;
+            // Remove the extra rotation
+            // leftFin.rotation.y += Math.PI;
             fish.object.add(leftFin);
 
             const rightFin = new THREE.Mesh(finGeometry, finMaterial);
             rightFin.position.set(-fishWidth * 1.1, 0, fishLength * 0.2);
             rightFin.rotation.z = -Math.PI / 4;
             rightFin.rotation.y = Math.PI / 6;
-            // Add rotation to match flipped body
-            rightFin.rotation.y += Math.PI;
+            // Remove the extra rotation
+            // rightFin.rotation.y += Math.PI;
             fish.object.add(rightFin);
 
             // Add a small anal fin at the bottom
@@ -714,8 +714,8 @@
             const analFinGeometry = new THREE.ShapeGeometry(analFinShape);
             const analFin = new THREE.Mesh(analFinGeometry, finMaterial);
             analFin.position.set(0, -fishHeight * 0.8, -fishLength * 0.3);
-            // Add rotation to match flipped body
-            analFin.rotation.y = Math.PI;
+            // Set original rotation
+            analFin.rotation.y = Math.PI / 2;
             fish.object.add(analFin);
 
             // Add fish to scene
@@ -1867,7 +1867,7 @@
                 
                 // Reset fish position
                 fish.object.position.set(0, 0, 0);
-                fish.object.rotation.set(0, 0, 0); // Reset overall object rotation (individual segments are already rotated)
+                fish.object.rotation.set(0, Math.PI, 0); // Apply 180-degree rotation around Y axis
                 fish.momentum.set(0, 0, 0);
                 fish.angularMomentum = 0;
                 
