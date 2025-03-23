@@ -1250,8 +1250,9 @@
             function createCsignLogo() {
                 // Create group for the csign logo
                 const csignLogoGroup = new THREE.Group();
-                csignLogoGroup.position.set(-180, 20, -280); // Position near the vibeverse portal
-
+                // Position on the opposite side from the vibeverse portal
+                csignLogoGroup.position.set(200, 20, 300); // Opposite of (-200, 20, -300) approximate portal position
+                
                 // Create a plane for the logo using its natural dimensions
                 const logoGeometry = new THREE.PlaneGeometry(20, 20);
                 
@@ -1264,7 +1265,8 @@
                 });
                 
                 const logoMesh = new THREE.Mesh(logoGeometry, logoMaterial);
-                logoMesh.rotation.y = Math.PI / 2;
+                // Rotate to face toward center of game area
+                logoMesh.rotation.y = -Math.PI / 2;
                 csignLogoGroup.add(logoMesh);
                 
                 // Try to load texture with error handling
@@ -1302,7 +1304,7 @@
                 
                 const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
                 glowMesh.position.z = -0.1;
-                glowMesh.rotation.y = Math.PI / 2;
+                glowMesh.rotation.y = -Math.PI / 2; // Match rotation of logo
                 csignLogoGroup.add(glowMesh);
                 
                 // Add the csign logo group to scene
