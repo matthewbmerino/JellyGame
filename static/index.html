@@ -175,15 +175,6 @@
     </style>
 </head>
 <body>
-    <div id="mobile-warning">
-        <h2>Game Optimized for Desktop</h2>
-        <p>This game is optimized for desktop but now includes touch controls for mobile devices.</p>
-        <p><b>Left joystick:</b> Pull up to swim up, pull down to swim down<br>
-           <b>Right joystick:</b> Pull up to swim forward, pull down to swim backward<br>
-           You can also steer left and right with the right joystick</p>
-        <button id="continue-anyway">Continue to Play</button>
-    </div>
-    
     <!-- Mobile joysticks -->
     <div id="vertical-joystick" class="joystick-container">
         <div class="joystick-knob"></div>
@@ -269,16 +260,13 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Only set up mobile-specific UI if on a mobile device
             if (isMobileDevice()) {
-                // Show mobile warning
-                document.getElementById('mobile-warning').style.display = 'flex';
-                
                 // Setup mobile joysticks
                 setupMobileControls();
                 
                 // Show debug overlay for mobile
                 document.getElementById('debug-overlay').style.display = 'block';
                 
-                // Show joysticks immediately on mobile (don't wait for "Continue Anyway")
+                // Show joysticks immediately on mobile
                 document.getElementById('vertical-joystick').style.display = 'block';
                 document.getElementById('horizontal-joystick').style.display = 'block';
                 
@@ -293,14 +281,6 @@
                         document.getElementById('joystick-help').style.display = 'none';
                     }, 1000);
                 }, 10000);
-                
-                // Add event listener for the "Continue Anyway" button
-                document.getElementById('continue-anyway').addEventListener('click', function() {
-                    document.getElementById('mobile-warning').style.display = 'none';
-                });
-            } else {
-                // For desktop devices, hide the mobile warning completely
-                document.getElementById('mobile-warning').style.display = 'none';
             }
         });
         
