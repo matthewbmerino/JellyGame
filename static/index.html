@@ -178,16 +178,16 @@
     <!-- Mobile joysticks -->
     <div id="vertical-joystick" class="joystick-container">
         <div class="joystick-knob"></div>
-        <div class="joystick-label">↑ UP/DOWN ↓</div>
+        <div class="joystick-label">↑ UP/DOWN ↓<br><small>← STEER →</small></div>
     </div>
     <div id="horizontal-joystick" class="joystick-container">
         <div class="joystick-knob"></div>
-        <div class="joystick-label">↑ FORWARD ↓<br><small>← STEER →</small></div>
+        <div class="joystick-label">↑ FORWARD ↓<br><small>BACKWARD</small></div>
     </div>
     
     <!-- Joystick helper instructions -->
     <div id="joystick-help" style="position: fixed; top: 10px; left: 0; right: 0; text-align: center; color: white; background-color: rgba(0,0,0,0.5); padding: 10px; font-family: 'Arial', sans-serif; display: none; z-index: 1001;">
-        Tap and drag on joysticks to move. <br>Left joystick: up/down, Right joystick: forward/backward & steer
+        Tap and drag on joysticks to move. <br>Left joystick: up/down & steer left/right, Right joystick: forward/backward
     </div>
     
     <!-- Minimap -->
@@ -324,7 +324,8 @@
             const joystickState = {
                 vertical: {
                     active: false,
-                    value: 0,
+                    value: 0,     // For up/down
+                    valueX: 0,    // For left/right steering
                     startY: 0,
                     maxDistance: 80,
                     touchId: null
@@ -366,23 +367,38 @@
                     const rect = verticalJoystick.getBoundingClientRect();
                     
                     // Calculate center and movement
+                    const centerX = rect.left + rect.width / 2;
                     const centerY = rect.top + rect.height / 2;
+                    let deltaX = touch.clientX - centerX;
                     let deltaY = touch.clientY - centerY;
-                    const distance = Math.min(Math.abs(deltaY), joystickState.vertical.maxDistance);
+                    
+                    // Calculate distance
+                    const distance = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY), joystickState.vertical.maxDistance);
+                    
+                    // Calculate angle
+                    const angle = Math.atan2(deltaY, deltaX);
+                    
+                    // Calculate position
+                    const newX = Math.cos(angle) * distance;
+                    const newY = Math.sin(angle) * distance;
                     
                     // Normalize to -1 to 1 (negative is up, positive is down)
-                    joystickState.vertical.value = (distance / joystickState.vertical.maxDistance) * Math.sign(deltaY);
+                    joystickState.vertical.value = newY / joystickState.vertical.maxDistance;
+                    
+                    // Normalize to -1 to 1 (negative is left, positive is right)
+                    joystickState.vertical.valueX = newX / joystickState.vertical.maxDistance;
                     
                     // Update knob position
-                    const knobY = joystickState.vertical.value * joystickState.vertical.maxDistance;
-                    verticalKnob.style.transform = `translate(-50%, calc(-50% + ${knobY}px))`;
+                    verticalKnob.style.transform = `translate(calc(-50% + ${newX}px), calc(-50% + ${newY}px))`;
                     
                     // Set movement keys
                     window.keys.ArrowUp = joystickState.vertical.value < -0.3;
                     window.keys.ArrowDown = joystickState.vertical.value > 0.3;
+                    window.keys.ArrowLeft = joystickState.vertical.valueX < -0.3;
+                    window.keys.ArrowRight = joystickState.vertical.valueX > 0.3;
                     
                     // Debug
-                    console.log('Vertical joystick value:', joystickState.vertical.value);
+                    console.log('Vertical joystick value Y:', joystickState.vertical.value, 'X:', joystickState.vertical.valueX);
                 }
             });
             
@@ -427,10 +443,13 @@
             function resetVerticalJoystick() {
                 joystickState.vertical.active = false;
                 joystickState.vertical.value = 0;
+                joystickState.vertical.valueX = 0;
                 joystickState.vertical.touchId = null;
                 verticalKnob.style.transform = 'translate(-50%, -50%)';
                 window.keys.ArrowUp = false;
                 window.keys.ArrowDown = false;
+                window.keys.ArrowLeft = false;
+                window.keys.ArrowRight = false;
             }
             
             // Handle horizontal joystick (turn left/right and forward/backward)
@@ -481,14 +500,12 @@
                     // Update knob position
                     horizontalKnob.style.transform = `translate(calc(-50% + ${newX}px), calc(-50% + ${newY}px))`;
                     
-                    // Set movement keys
-                    window.keys.ArrowLeft = joystickState.horizontal.valueX < -0.3;
-                    window.keys.ArrowRight = joystickState.horizontal.valueX > 0.3;
+                    // Set movement keys - only forward and backward, not steering
                     window.keys.f = joystickState.horizontal.valueY < -0.3;
                     window.keys.r = joystickState.horizontal.valueY > 0.3;
                     
                     // Debug
-                    console.log('Horizontal joystick valueX:', joystickState.horizontal.valueX, 'valueY:', joystickState.horizontal.valueY);
+                    console.log('Horizontal joystick valueY:', joystickState.horizontal.valueY);
                 }
             });
             
@@ -536,8 +553,6 @@
                 joystickState.horizontal.valueY = 0;
                 joystickState.horizontal.touchId = null;
                 horizontalKnob.style.transform = 'translate(-50%, -50%)';
-                window.keys.ArrowLeft = false;
-                window.keys.ArrowRight = false;
                 window.keys.f = false;
                 window.keys.r = false;
             }
